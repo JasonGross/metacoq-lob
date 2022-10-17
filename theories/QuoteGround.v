@@ -56,77 +56,49 @@ Proof.
     exact _.
 Defined.
 
+Ltac make_quotation_of_goal _ :=
+  let t := match goal with |- quotation_of ?t => t end in
+  run_template_program (make_quotation_of t) (fun v => exact v).
+
 #[export]
- Hint Extern 1 (quotation_of ?t) => run_template_program (make_quotation_of t) (fun v => exact v) : typeclass_instances.
+ Hint Extern 1 (quotation_of ?t) => make_quotation_of_goal () : typeclass_instances.
 
 #[export] Typeclasses Opaque quotation_of.
 
 #[export] Instance quote_nat : ground_quotable nat := (ltac:(induction 1; exact _)).
+#[export] Instance quote_bool : ground_quotable bool := (ltac:(induction 1; exact _)).
 #[export] Instance quote_byte : ground_quotable Byte.byte := (ltac:(induction 1; exact _)).
 #[export] Instance quote_string : ground_quotable string := (ltac:(induction 1; exact _)).
+#[export] Instance quote_list {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (list A) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_Level_t : ground_quotable Level.t := (ltac:(induction 1; exact _)).
 #[export] Instance quote_LevelExprSet_Raw_elt : ground_quotable LevelExprSet.Raw.elt := (ltac:(induction 1; exact _)).
 #[export] Instance quote_LevelExprSet_Raw_t : ground_quotable LevelExprSet.Raw.t := (ltac:(induction 1; exact _)).
-Print Universe.lType.
-Print LevelAlgExpr.t.
-Print nonEmptyLevelExprSet.
-Print LevelExprSet.Raw.t.
-Print LevelExprSet.t_.
-Print LevelExprSet.Raw.isok.
-#[export] Instance quote_LevelExprSet_Raw_Ok : ground_quotable LevelExprSet.Raw.Ok := (ltac:(induction 1; exact _)).
+#[export] Instance quotation_of_eq_refl {A} {qA : quotation_of A} {a : A} {qa : quotation_of a} : quotation_of (@eq_refl A a) := _.
+#[export] Instance quote_eq {A} {qA : quotation_of A} {qA : ground_quotable A} {x y : A} : ground_quotable (x = y :> A) := (ltac:(intros []; exact _)).
+#[export] Instance quote_LevelExprSet_Raw_Ok s : ground_quotable (LevelExprSet.Raw.Ok s) := (ltac:(cbv [LevelExprSet.Raw.Ok]; exact _)).
 #[export] Instance quote_LevelExprSet_t : ground_quotable LevelExprSet.t := (ltac:(induction 1; exact _)).
 #[export] Instance quote_LevelAlgExpr_t : ground_quotable LevelAlgExpr.t := (ltac:(induction 1; exact _)).
 #[export] Instance quote_Universe : ground_quotable Universe.t := (ltac:(induction 1; exact _)).
-Print term.
-  := match n with
-     | 0 => <% 0 %>
-     | S n => Ast.tApp <% S %> [ quote_nat n ]
-     end.
-
-Print ident.
-Print term.
-
-
-
-Check _ : quotation_of O.
-  Print option_instance.
-  refine match qt with
-         | tRel n => _
-         | tVar id => _
-         | tEvar ev args => _
-         | tSort s => _
-         | tCast t kind v => _
-         | tProd na ty body => _
-         | tLambda na ty body => _
-         | tLetIn na def def_ty body => _
-         | tApp f args => _
-         | tConst c u => _
-         | tInd ind u => _
-         | tConstruct ind idx u => _
-         | tCase ci type_info discr branches => _
-         | tProj proj t => _
-         | tFix mfix idx => _
-         | tCoFix mfix idx => _
-         | tInt i => _
-         | tFloat f => _
-         end
-
-#[export] Hint Extern 0 (quotation_of ?x) => is_constructor x; exact <% x %> : typeclass_instances.
-
-
-Check _ : quotation_of (S 0).
-
-Check (t <- tmQuote true ;; tmPrint t).
-MetaCoq Run (t <- tmQuote true ;; tmPrint t).
-
-Ltac make_quoter_quote_term t :=
-
-
-Definition quote_bool (b : bool) : Ast.term.
-
-  Ltac make_quoter x :=
-    let xv := fresh "v" in
-    pose x as xv;
-    induction x;
-    (*let v := (eval cbv [xv] in xv); clear xv*) idtac.
-  make_quoter b.
+#[export] Instance quote_ident : ground_quotable ident := (ltac:(cbv [ident]; exact _)).
+#[export] Instance quote_name : ground_quotable name := (ltac:(induction 1; exact _)).
+#[export] Instance quote_relevance : ground_quotable relevance := (ltac:(induction 1; exact _)).
+#[export] Instance quote_binder_annot {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (binder_annot A) := (ltac:(induction 1; exact _)).
+#[export] Instance quote_aname : ground_quotable aname := _.
+#[export] Instance quote_cast_kind : ground_quotable cast_kind := (ltac:(induction 1; exact _)).
+#[export] Instance quote_modpath : ground_quotable modpath := (ltac:(induction 1; exact _)).
+#[export] Instance quote_kername : ground_quotable kername := (ltac:(induction 1; exact _)).
+#[export] Instance quote_Instance_t : ground_quotable Instance.t := _.
+#[export] Instance quote_inductive : ground_quotable inductive := (ltac:(induction 1; exact _)).
+#[export] Instance quote_case_info : ground_quotable case_info := (ltac:(induction 1; exact _)).
+#[export] Instance quote_projection : ground_quotable projection := (ltac:(induction 1; exact _)).
+#[export] Instance quote_PrimInt63_int : ground_quotable PrimInt63.int := tInt.
+#[export] Instance quote_PrimFloat_float : ground_quotable PrimFloat.float := tFloat.
+#[export] Instance quote_predicate {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (predicate A) := (ltac:(induction 1; exact _)).
+#[export] Instance quote_branch {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (branch A) := (ltac:(induction 1; exact _)).
+#[export] Instance quote_def {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (def A) := (ltac:(induction 1; exact _)).
+#[export] Instance quote_mfixpoint {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (mfixpoint A) := _.
+#[export] Instance quote_term : ground_quotable term.
+Proof.
+  hnf. fix quote_term 1; change (ground_quotable term) in quote_term; destruct 1.
+  all: make_quotation_of_goal ().
+Defined.
