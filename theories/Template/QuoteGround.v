@@ -1,4 +1,5 @@
 From MetaCoq.Template Require Import utils All.
+From MetaCoq.PCUIC Require PCUICAst PCUICTyping.
 Require Import Coq.Lists.List.
 Import ListNotations.
 
@@ -62,6 +63,11 @@ Ltac make_quotation_of_goal _ :=
 
 #[export]
  Hint Extern 1 (quotation_of ?t) => make_quotation_of_goal () : typeclass_instances.
+#[export]
+ Hint Extern 1 (quotation_of match ?t with _ => _ end) => is_var t; destruct t : typeclass_instances.
+#[export]
+ Hint Extern 1 (ground_quotable match ?t with _ => _ end) => is_var t; destruct t : typeclass_instances.
+
 
 #[export] Typeclasses Opaque quotation_of.
 
@@ -70,6 +76,8 @@ Ltac make_quotation_of_goal _ :=
 #[export] Instance quote_byte : ground_quotable Byte.byte := (ltac:(induction 1; exact _)).
 #[export] Instance quote_string : ground_quotable string := (ltac:(induction 1; exact _)).
 #[export] Instance quote_list {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (list A) := (ltac:(induction 1; exact _)).
+#[export] Instance quote_option {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (option A) := (ltac:(induction 1; exact _)).
+#[export] Instance quote_sigT {A P} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} : ground_quotable (@sigT A P) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_Level_t : ground_quotable Level.t := (ltac:(induction 1; exact _)).
 #[export] Instance quote_LevelExprSet_Raw_elt : ground_quotable LevelExprSet.Raw.elt := (ltac:(induction 1; exact _)).
 #[export] Instance quote_LevelExprSet_Raw_t : ground_quotable LevelExprSet.Raw.t := (ltac:(induction 1; exact _)).
@@ -102,3 +110,60 @@ Proof.
   hnf. fix quote_term 1; change (ground_quotable term) in quote_term; destruct 1.
   all: make_quotation_of_goal ().
 Defined.
+
+Module Import BasicAst.
+  #[export] Instance quote_context_decl {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (BasicAst.context_decl A) := (ltac:(induction 1; exact _)).
+  #[export] Instance quote_typ_or_sort_ {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (BasicAst.typ_or_sort_ A) := (ltac:(induction 1; exact _)).
+End BasicAst.
+
+Module Import Primitive.
+  #[export] Instance quote_prim_tag : ground_quotable Primitive.prim_tag := (ltac:(induction 1; exact _)).
+End Primitive.
+
+Module Import PCUICPrimitive.
+  #[export] Instance quote_prim_model {A} {qA : quotation_of A} {quoteA : ground_quotable A} {t} : ground_quotable (PCUICPrimitive.prim_model A t) := (ltac:(induction 1; exact _)).
+  #[export] Instance quote_context_decl {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (BasicAst.context_decl A) := (ltac:(induction 1; exact _)).
+  #[export] Instance quote_prim_val {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (PCUICPrimitive.prim_val A) := @quote_sigT _ (PCUICPrimitive.prim_model A) _ _ _ _.
+End PCUICPrimitive.
+
+Module Import PCUIC.
+  #[export] Instance quote_predicate {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (PCUICAst.predicate A) := (ltac:(induction 1; exact _)).
+  #[export] Instance quote_branch {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (PCUICAst.branch A) := (ltac:(induction 1; exact _)).
+  #[export] Instance quote_term : ground_quotable PCUICAst.term.
+  Proof.
+    hnf. fix quote_term 1; change (ground_quotable PCUICAst.term) in quote_term; destruct 1.
+    all: make_quotation_of_goal ().
+  Defined.
+
+  Module Export PCUICEnvironment.
+    #[export] Instance quote_context : ground_quotable PCUICAst.PCUICEnvironment.context := _.
+  End PCUICEnvironment.
+End PCUIC.
+
+Module Import PCUICTyping.
+  #[export] Instance quote_All_local_env {typing} {qtyping : quotation_of typing} {quote_typing : forall Γ t T, ground_quotable (typing Γ t T)} {Γ} {qΓ : quotation_of Γ} : ground_quotable (@PCUICTyping.All_local_env typing Γ) := (ltac:(induction 1; exact _)).
+  #[export] Instance quote_lift_judgment {check infer_sort}
+   {quote_check : forall Σ Γ t T, ground_quotable (check Σ Γ t T)}
+   {quote_infer_sort : forall Σ Γ T, ground_quotable (infer_sort Σ Γ T)}
+   {Σ Γ t T}
+    : ground_quotable (@PCUICTyping.lift_judgment check infer_sort Σ Γ t T)
+    := (ltac:(cbv [PCUICTyping.lift_judgment]; exact _)).
+  Print PCUICTyping.infer_sort.
+  #[export] Instance quote_infer_sort {sorting} {Σ Γ T} {qsorting : quotation_of (sorting Σ Γ T)} {quote_sorting : forall U, quotation_of U -> ground_quotable (sorting Σ Γ T U)} : ground_quotable (@PCUICTyping.infer_sort sorting Σ Γ T) := @quote_sigT _ (sorting Σ Γ T) _ _ _ _.
+  #[export] Instance quote_lift_typing {typing} {quote_typing : forall Σ Γ t T, ground_quotable (typing Σ Γ t T)} {Σ Γ t T} : ground_quotable (@PCUICTyping.lift_typing typing Σ Γ t T).
+  cbv [PCUICTyping.lift_typing].
+  apply @quote_lift_judgment; try exact _.
+  intros.
+  apply @quote_infer_sort; try exact _.
+  PCUICTyping.lift_typing PCUICTyping.typing
+  #[export] Instance quote_typing {checker_flags Σ Γ x T} : ground_quotable (@PCUICTyping.typing checker_flags Σ Γ x T).
+  Proof.
+    hnf. fix quote_typing 1; change (ground_quotable (@PCUICTyping.typing checker_flags Σ Γ x T)) in quote_typing; destruct 1.
+    Typeclasses eauto := debug.
+    all: try make_quotation_of_goal ().
+    pose (_ : quotation_of n).
+    pose (_ : quotation_of decl).
+    pose (_ : quotation_of e).
+    pose (_ : quotation_of a).
+  Defined.
+Inductive typing `{checker_flags} (Σ : global_env_ext) (Γ : context) : term -> term -> Type :=
