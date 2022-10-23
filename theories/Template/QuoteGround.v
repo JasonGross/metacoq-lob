@@ -119,6 +119,43 @@ End BasicAst.
 
 #[export] Instance quote_context : ground_quotable context := (ltac:(induction 1; exact _)).
 (* TODO: MOVE *)
+Scheme Induction for Level.lt_ Sort Prop.
+Scheme Case for Level.lt_ Sort Prop.
+Scheme Minimality for Level.lt_ Sort Prop.
+#[export] Instance quote_Level_lt_ l1 l2 : ground_quotable (Level.lt_ l1 l2).
+Proof.
+  revert l2; induction l1, l2.
+  all: try solve [ intro H; exfalso; abstract inversion H ].
+  all: intro H.
+  all: unshelve
+         (lazymatch goal with
+          | [ |- ?f _ ]
+            => let v := open_constr:(f ltac:(econstructor)) in
+               change v
+          end);
+    try exact _.
+
+  all:
+  Print Level.lt.
+  { intro; change (quotation_of LevelSet.Raw.BSLeaf).
+    exact _. }
+  { intro t.
+    Check LevelSet.Raw.bst_ind.
+    Print tree_caset_nodep.
+    Check @LevelSet.Raw.bst_ind.
+    unshelve
+      (lazymatch goal with
+       | [ |- ?f t ]
+         => let v := open_constr:(f ltac:(eapply LevelSet.Raw.BSNode)) in
+            change v
+       end);
+      [ refine (@LevelSet.Raw.bst_ind
+                  (fun n _ => @tree_caset_nodep Prop True (fun _ _ _ _ _ _ => _) n)
+                  I
+                  _
+                  _
+                  t);
+(* TODO: MOVE *)
 Scheme Induction for LevelSet.Raw.tree Sort Type.
 Scheme Induction for LevelSet.Raw.tree Sort Set.
 Scheme Induction for LevelSet.Raw.tree Sort Prop.
