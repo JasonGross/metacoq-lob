@@ -120,10 +120,56 @@ End BasicAst.
 #[export] Instance quote_context : ground_quotable context := (ltac:(induction 1; exact _)).
 (* TODO: MOVE *)
 Scheme Induction for LevelSet.Raw.tree Sort Type.
+Scheme Induction for LevelSet.Raw.tree Sort Set.
+Scheme Induction for LevelSet.Raw.tree Sort Prop.
+Scheme Case for LevelSet.Raw.tree Sort Type.
+Scheme Case for LevelSet.Raw.tree Sort Prop.
+Scheme Minimality for LevelSet.Raw.tree Sort Type.
+Scheme Minimality for LevelSet.Raw.tree Sort Set.
+Scheme Minimality for LevelSet.Raw.tree Sort Prop.
 #[export] Instance quote_LevelSet_Raw_t : ground_quotable LevelSet.Raw.t := (ltac:(induction 1; exact _)).
 #[export] Instance quote_LevelSet_Raw_bst t : ground_quotable (LevelSet.Raw.bst t).
 Proof.
   induction t; hnf.
+  { intro; change (quotation_of LevelSet.Raw.BSLeaf).
+    exact _. }
+  { intro t.
+    Check LevelSet.Raw.bst_ind.
+    Print tree_caset_nodep.
+    Check @LevelSet.Raw.bst_ind.
+    unshelve
+      (lazymatch goal with
+       | [ |- ?f t ]
+         => let v := open_constr:(f ltac:(eapply LevelSet.Raw.BSNode)) in
+            change v
+       end);
+      [ refine (@LevelSet.Raw.bst_ind
+                  (fun n _ => @tree_caset_nodep Prop True (fun _ _ _ _ _ _ => _) n)
+                  I
+                  _
+                  _
+                  t);
+        intros; eassumption
+                  ..
+      | ].
+    unshelve
+      (repeat match goal with
+              | [ |- context[@LevelSet.Raw.bst_ind ?P ?x ?y ?z ?t] ]
+                => let ty := constr:(quotation_of (@LevelSet.Raw.bst_ind P x y z t)) in
+                   lazymatch goal with
+                   | [ H : ty |- _ ] => fail
+                   | _ => idtac
+                   end;
+                   assert ty by shelve
+              end;
+       try exact _).
+    all: cbn [tree_caset_nodep].
+    all: try exact _.
+    Print LevelSet.Raw.InT.
+    { Set Printing Implicit.
+      Print Level.lt_.
+      exact _.
+    5: { exact _.
   Print LevelSet.Raw.bst.
   Print LevelSet.Raw.lt_tree.
   Print LevelSet.Raw.InT.
