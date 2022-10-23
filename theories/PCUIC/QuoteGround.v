@@ -148,9 +148,14 @@ Module Import PCUICTyping.
     hnf. fix quote_typing 1; change (ground_quotable (@PCUICTyping.typing checker_flags Σ Γ x T)) in quote_typing; destruct 1.
     Typeclasses eauto := debug.
     all: try make_quotation_of_goal ().
+    pose (_ : quotation_of Σ).
     pose (_ : quotation_of n).
     pose (_ : quotation_of decl).
     pose (_ : quotation_of e).
+    assert (quotation_of a).
+    { eapply @quote_All_local_env; try exact _.
+
+      eapply @quote_lift_typing.
     pose (_ : quotation_of a).
   Defined.
 Inductive typing `{checker_flags} (Σ : global_env_ext) (Γ : context) : term -> term -> Type :=
