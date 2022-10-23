@@ -71,6 +71,8 @@ Ltac make_quotation_of_goal _ :=
 #[export] Typeclasses Opaque quotation_of.
 
 #[export] Instance quote_nat : ground_quotable nat := (ltac:(induction 1; exact _)).
+#[export] Instance quote_positive : ground_quotable positive := (ltac:(induction 1; exact _)).
+#[export] Instance quote_Z : ground_quotable Z := (ltac:(induction 1; exact _)).
 #[export] Instance quote_bool : ground_quotable bool := (ltac:(induction 1; exact _)).
 #[export] Instance quote_byte : ground_quotable Byte.byte := (ltac:(induction 1; exact _)).
 #[export] Instance quote_string : ground_quotable string := (ltac:(induction 1; exact _)).
@@ -115,6 +117,72 @@ Module Import BasicAst.
   #[export] Instance quote_typ_or_sort_ {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (BasicAst.typ_or_sort_ A) := (ltac:(induction 1; exact _)).
 End BasicAst.
 
+#[export] Instance quote_context : ground_quotable context := (ltac:(induction 1; exact _)).
+(* TODO: MOVE *)
+Scheme Induction for LevelSet.Raw.tree Sort Type.
+#[export] Instance quote_LevelSet_Raw_t : ground_quotable LevelSet.Raw.t := (ltac:(induction 1; exact _)).
+#[export] Instance quote_LevelSet_Raw_bst t : ground_quotable (LevelSet.Raw.bst t).
+Proof.
+  induction t; hnf.
+  Print LevelSet.Raw.bst.
+  Print LevelSet.Raw.lt_tree.
+  Print LevelSet.Raw.InT.
+  Print LevelSet.Raw.elt.
+  := (ltac:(induction t; inversion 1; exact _)).
+
+#[export] Instance quote_LevelSet_Raw_Ok s : ground_quotable (LevelSet.Raw.Ok s) := (ltac:(cbv [LevelSet.Raw.Ok]; exact _)).
+Print LevelSet.t_.
+#[export] Instance quote_LevelSet_t_ : ground_quotable LevelSet.t_ := (ltac:(induction 1; exact _)).
+#[export] Instance quote_LevelSet_t : ground_quotable LevelSet.t := (ltac:(induction 1; exact _)).
+#[export] Instance quote_ContextSet_t : ground_quotable ContextSet.t := (ltac:(induction 1; exact _)).
+#[export] Instance quote_global_env : ground_quotable global_env := (ltac:(induction 1; exact _)).
+Print global_env_ext.
+#[export] Instance quote_global_env_ext : ground_quotable global_env_ext := (ltac:(induction 1; exact _)).
+
 Module Import Primitive.
   #[export] Instance quote_prim_tag : ground_quotable Primitive.prim_tag := (ltac:(induction 1; exact _)).
 End Primitive.
+
+Module Import Typing.
+  Print typing.
+  #[local] Typeclasses Transparent ground_quotable.
+  #[export] Instance quote_typing {H Σ Γ t1 t2} : ground_quotable (@typing H Σ Γ t1 t2).
+  induction 1; try exact _.
+  all: try make_quotation_of_goal ().
+  pose (_ : quotation_of Σ).
+Module Import PCUICTyping.
+  #[export] Instance quote_All_local_env {typing} {qtyping : quotation_of typing} {quote_typing : forall Γ t T, ground_quotable (typing Γ t T)} {Γ} {qΓ : quotation_of Γ} : ground_quotable (@PCUICTyping.All_local_env typing Γ) := (ltac:(induction 1; exact _)).
+  #[local] Hint Extern 1 (_ = _) => reflexivity : typeclass_instances.
+  #[export] Instance quote_lift_judgment {check infer_sort}
+   {Σ Γ t T}
+   {quote_check : forall T', Typ T' = T -> ground_quotable (check Σ Γ t T')}
+   {quote_infer_sort : T = Sort -> ground_quotable (infer_sort Σ Γ t)}
+    : ground_quotable (@PCUICTyping.lift_judgment check infer_sort Σ Γ t T)
+    := (ltac:(cbv [PCUICTyping.lift_judgment]; exact _)).
+  #[export] Instance quote_infer_sort {sorting} {Σ Γ T} {qsorting : quotation_of (sorting Σ Γ T)} {quote_sorting : forall U, quotation_of U -> ground_quotable (sorting Σ Γ T U)} : ground_quotable (@PCUICTyping.infer_sort sorting Σ Γ T) := @quote_sigT _ (sorting Σ Γ T) _ _ _ _.
+  #[local] Instance quotation_of_compose_tSort {A} (f : _ -> A) {qf : quotation_of f} : quotation_of (fun s => f (tSort s)).
+  Proof.
+    lazymatch constr:(<% fun s => f (tSort s) %>) with
+    | context qt[tVar "f"]
+      => let qt := context qt[qf] in
+         exact qt
+    end.
+  Defined.
+  #[local] Hint Extern 1 => progress (intros; subst) : typeclass_instances.
+  #[export] Instance quote_lift_typing {typing} {Σ Γ t T}
+   {quote_typing : forall T', Typ T' = T -> ground_quotable (typing Σ Γ t T')}
+   {quote_typing' : forall U, T = Sort -> quotation_of U -> ground_quotable (typing Σ Γ t (tSort U))}
+   {qtyping : T = Sort -> quotation_of (typing Σ Γ t)}
+    : ground_quotable (@PCUICTyping.lift_typing typing Σ Γ t T)
+    := ltac:(cbv [PCUICTyping.lift_typing]; exact _).
+  #[export] Instance quote_typing {checker_flags Σ Γ x T} : ground_quotable (@PCUICTyping.typing checker_flags Σ Γ x T).
+  Proof.
+    hnf. fix quote_typing 1; change (ground_quotable (@PCUICTyping.typing checker_flags Σ Γ x T)) in quote_typing; destruct 1.
+    Typeclasses eauto := debug.
+    all: try make_quotation_of_goal ().
+    pose (_ : quotation_of n).
+    pose (_ : quotation_of decl).
+    pose (_ : quotation_of e).
+    pose (_ : quotation_of a).
+  Defined.
+Inductive typing `{checker_flags} (Σ : global_env_ext) (Γ : context) : term -> term -> Type :=
