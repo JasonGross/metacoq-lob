@@ -1,3 +1,4 @@
+From Coq Require Import MSetInterface MSetList MSetAVL MSetFacts MSetProperties MSetDecide.
 Require Import Coq.derive.Derive.
 Require Import Coq.Bool.Bool.
 From MetaCoq.Template Require Import utils All.
@@ -83,6 +84,7 @@ Ltac make_quotation_of_goal _ :=
 #[export] Instance quote_string : ground_quotable string := (ltac:(induction 1; exact _)).
 #[export] Instance quote_list {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (list A) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_option {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (option A) := (ltac:(induction 1; exact _)).
+#[export] Instance quote_prod {A B} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (A × B) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_sigT {A P} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} : ground_quotable (@sigT A P) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_Level_t : ground_quotable Level.t := (ltac:(induction 1; exact _)).
 #[export] Instance quote_LevelExprSet_Raw_elt : ground_quotable LevelExprSet.Raw.elt := (ltac:(induction 1; exact _)).
@@ -157,127 +159,149 @@ Proof.
     else (try solve [ exact I | inversion 1 ]);
     eassumption.
 Defined.
-Definition Level_lt_'_of_lt_ : forall {x y}, Level.lt_ x y -> Level_lt_' x y := ltac:(apply Level_lt_'_lt_).
-Definition Level_lt__of_lt_' : forall {x y}, Level_lt_' x y -> Level.lt_ x y := ltac:(apply Level_lt_'_lt_).
-#[export] Instance quote_Level_lt_' x y : ground_quotable (Level_lt_' x y) := ltac:(destruct x, y; cbn [Level_lt_']; exact _).
-#[export] Instance quote_Level_lt_ x y : ground_quotable (Level.lt_ x y).
-Proof.
-  intro p.
-  let f := lazymatch goal with |- ?f _ => f end in
-  change (f (Level_lt__of_lt_' (Level_lt_'_of_lt_ p))).
-  exact _.
-Defined.
-Definition Level_lt_'_dec x y : {Level_lt_' x y} + {~Level_lt_' x y}.
-Proof.
-  destruct x, y; cbn; cbv [Nat.lt lt StringOT.lt]; try apply Nat_le_dec;
-    (idtac + destruct string_compare);
-    solve [ constructor; constructor; constructor
-          | right; inversion 1 ].
-Defined.
-Definition Level_lt__dec x y : {Level.lt_ x y} + {~Level.lt_ x y}.
-Proof.
-  destruct (Level_lt_'_dec x y) as [p|p]; [ left | right ];
-    auto 4 using Level_lt__of_lt_', Level_lt_'_of_lt_.
-Defined.
-(* TODO: MOVE *)
-Scheme Induction for LevelSet.Raw.tree Sort Type.
-Scheme Induction for LevelSet.Raw.tree Sort Set.
-Scheme Induction for LevelSet.Raw.tree Sort Prop.
-Scheme Case for LevelSet.Raw.tree Sort Type.
-Scheme Case for LevelSet.Raw.tree Sort Prop.
-Scheme Minimality for LevelSet.Raw.tree Sort Type.
-Scheme Minimality for LevelSet.Raw.tree Sort Set.
-Scheme Minimality for LevelSet.Raw.tree Sort Prop.
-#[export] Instance quote_LevelSet_Raw_t : ground_quotable LevelSet.Raw.t := (ltac:(induction 1; exact _)).
-Fixpoint LevelSet_Raw_InT_dec x t : { LevelSet.Raw.InT x t } + {~ LevelSet.Raw.InT x t}.
-Proof.
-  refine match t with
-         | LevelSet.Raw.Leaf => right _
-         | LevelSet.Raw.Node z l n r
-           => match Sumbool.sumbool_of_bool (x == n), LevelSet_Raw_InT_dec x l, LevelSet_Raw_InT_dec x r with
-              | left pf, _, _ => left (_ (eqb_spec x n))
-              | _, left pf, _ => left _
-              | _, _, left pf => left _
-              | right p1, right p2, right p3 => right (_ (eqb_spec x n))
-              end
-         end;
-    try solve [ inversion 1
-              | destruct 1; first [ constructor; assumption | exfalso; discriminate ]
-              | constructor; assumption
-              | do 2 inversion 1; subst; exfalso; congruence ].
-Defined.
-Fixpoint LevelSet_Raw_lt_tree_dec x t : { LevelSet.Raw.lt_tree x t } + {~ LevelSet.Raw.lt_tree x t}.
-Proof.
-  refine match t with
-         | LevelSet.Raw.Leaf => left _
-         | LevelSet.Raw.Node z l n r
-           => match Level_lt__dec n x, LevelSet_Raw_lt_tree_dec x l, LevelSet_Raw_lt_tree_dec x r with
-              | right pf, _, _ => right _
-              | _, right pf, _ => right _
-              | _, _, right pf => right _
-              | left p1, left p2, left p3 => left _
-              end
-         end;
-    try solve [ inversion 1
-              | inversion 1; subst; auto
-              | intro f; apply pf; hnf in *; intros; apply f; constructor; (assumption + reflexivity) ].
-Defined.
-Fixpoint LevelSet_Raw_gt_tree_dec x t : { LevelSet.Raw.gt_tree x t } + {~ LevelSet.Raw.gt_tree x t}.
-Proof.
-  refine match t with
-         | LevelSet.Raw.Leaf => left _
-         | LevelSet.Raw.Node z l n r
-           => match Level_lt__dec x n, LevelSet_Raw_gt_tree_dec x l, LevelSet_Raw_gt_tree_dec x r with
-              | right pf, _, _ => right _
-              | _, right pf, _ => right _
-              | _, _, right pf => right _
-              | left p1, left p2, left p3 => left _
-              end
-         end;
-    try solve [ inversion 1
-              | inversion 1; subst; auto
-              | intro f; apply pf; hnf in *; intros; apply f; constructor; (assumption + reflexivity) ].
-Defined.
-Fixpoint LevelSet_Raw_bst_dec t : { LevelSet.Raw.bst t } + {~ LevelSet.Raw.bst t}.
-Proof.
-  refine match t with
-         | LevelSet.Raw.Leaf => left _
-         | LevelSet.Raw.Node z l n r
-           => match LevelSet_Raw_bst_dec l, LevelSet_Raw_bst_dec r, LevelSet_Raw_lt_tree_dec n l, LevelSet_Raw_gt_tree_dec n r with
-              | right pf, _, _, _ => right _
-              | _, right pf, _, _ => right _
-              | _, _, right pf, _ => right _
-              | _, _, _, right pf => right _
-              | left p1, left p2, left p3, left p4 => left _
-              end
-         end;
-    try solve [ constructor; assumption
-              | inversion 1; subst; auto ].
-Defined.
-Definition LevelSet_Raw_bstb t := if LevelSet_Raw_bst_dec t then true else false.
-Definition LevelSet_Raw_bstb_bst t : LevelSet_Raw_bstb t = true -> LevelSet.Raw.bst t.
-Proof.
-  cbv [LevelSet_Raw_bstb]; destruct LevelSet_Raw_bst_dec; auto; discriminate.
-Defined.
-Definition LevelSet_Raw_bstb_bst_alt t : LevelSet.Raw.bst t -> LevelSet_Raw_bstb t = true.
-Proof.
-  cbv [LevelSet_Raw_bstb]; destruct LevelSet_Raw_bst_dec; auto; discriminate.
-Defined.
+
 Definition ground_quotable_of_bl {b P} (H : b = true -> P) {qH : quotation_of H} (H_for_safety : P -> b = true) : ground_quotable P.
 Proof.
   intro p.
   exact (mkApps qH [_ : quotation_of (@eq_refl bool true)]).
 Defined.
-#[export] Instance quote_LevelSet_Raw_bst t : ground_quotable (LevelSet.Raw.bst t)
-  := ground_quotable_of_bl (@LevelSet_Raw_bstb_bst t) (@LevelSet_Raw_bstb_bst_alt t).
-#[export] Instance quote_LevelSet_Raw_Ok s : ground_quotable (LevelSet.Raw.Ok s) := (ltac:(cbv [LevelSet.Raw.Ok]; exact _)).
-#[export] Instance quote_LevelSet_t_ : ground_quotable LevelSet.t_ := (ltac:(induction 1; exact _)).
-#[export] Instance quote_LevelSet_t : ground_quotable LevelSet.t := (ltac:(induction 1; exact _)).
-Print ContextSet.t.
-Print ConstraintSet.t_.
+
+Module Type MSetAVL_MakeT (T : OrderedType). Include MSetAVL.Make T. End MSetAVL_MakeT.
+
+Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeT T).
+  Module MFact := WFactsOn T M.
+  Module MProp := WPropertiesOn T M.
+  Module MDecide := WDecide (M).
+  Local Ltac msets := MDecide.fsetdec.
+
+  Scheme Induction for M.Raw.tree Sort Type.
+  Scheme Induction for M.Raw.tree Sort Set.
+  Scheme Induction for M.Raw.tree Sort Prop.
+  Scheme Case for M.Raw.tree Sort Type.
+  Scheme Case for M.Raw.tree Sort Prop.
+  Scheme Minimality for M.Raw.tree Sort Type.
+  Scheme Minimality for M.Raw.tree Sort Set.
+  Scheme Minimality for M.Raw.tree Sort Prop.
+  Section with_t.
+    Context {quote_T_t : ground_quotable T.t}.
+
+    #[export] Instance quote_M_Raw_t : ground_quotable M.Raw.t := (ltac:(induction 1; exact _)).
+    Fixpoint M_Raw_InT_dec x t : { M.Raw.InT x t } + {~ M.Raw.InT x t}.
+    Proof.
+      Search T.compare.
+      refine match t with
+             | M.Raw.Leaf => right _
+             | M.Raw.Node z l n r
+               => match T.compare x n as c, M_Raw_InT_dec x l, M_Raw_InT_dec x r return CompareSpec _ _ _ c -> _ with
+                  | Eq, _, _ => fun pf => left (_ pf)
+                  | _, left pf, _ => fun _ => left _
+                  | _, _, left pf => fun _ => left _
+                  | _, right p2, right p3 => fun p1 => right (_ p1)
+                  end (T.compare_spec x n)
+             end;
+        try solve [ inversion 1
+                  | inversion 1; first [ constructor; first [ assumption | subst; reflexivity ] | exfalso; discriminate ]
+                  | constructor; assumption
+                  | do 2 inversion 1; subst; exfalso;
+                    try congruence;
+                    match goal with
+                    | [ H : T.lt _ _, H' : T.eq _ _ |- False ]
+                      => rewrite H' in H; now eapply M.Raw.MX.lt_irrefl
+                    end ].
+    Defined.
+    Fixpoint M_Raw_lt_tree_dec x t : { M.Raw.lt_tree x t } + {~ M.Raw.lt_tree x t}.
+    Proof.
+      refine match t with
+             | M.Raw.Leaf => left _
+             | M.Raw.Node z l n r
+               => match T.compare n x as c, M_Raw_lt_tree_dec x l, M_Raw_lt_tree_dec x r return CompareSpec _ _ _ c -> _ with
+                  | Lt, left p2, left p3 => fun pfc => left _
+                  | _, right pf, _ => fun pfc => right _
+                  | _, _, right pf => fun pfc => right _
+                  | _, _, _ => fun pfc => right _
+                  end (T.compare_spec _ _)
+             end;
+        try solve [ inversion 1; inversion pfc
+                  | inversion 1; inversion pfc; subst; auto;
+                    match goal with
+                    | [ H : T.lt _ _, H' : T.eq _ _ |- _ ]
+                      => now first [ rewrite -> H' in H | rewrite <- H' in H ]
+                    end
+                  | intro f; apply pf; hnf in *; intros; apply f; constructor; (assumption + reflexivity)
+                  | intro f; inversion pfc; eapply M.Raw.MX.lt_irrefl; (idtac + etransitivity); (eassumption + (eapply f; constructor; (idtac + symmetry); (eassumption + reflexivity))) ].
+    Defined.
+    Fixpoint M_Raw_gt_tree_dec x t : { M.Raw.gt_tree x t } + {~ M.Raw.gt_tree x t}.
+    Proof.
+      refine match t with
+             | M.Raw.Leaf => left _
+             | M.Raw.Node z l n r
+               => match T.compare n x as c, M_Raw_gt_tree_dec x l, M_Raw_gt_tree_dec x r return CompareSpec _ _ _ c -> _ with
+                  | Gt, left p2, left p3 => fun pfc => left _
+                  | _, right pf, _ => fun pfc => right _
+                  | _, _, right pf => fun pfc => right _
+                  | _, _, _ => fun pfc => right _
+                  end (T.compare_spec _ _)
+             end;
+        try solve [ inversion 1; inversion pfc
+                  | inversion 1; inversion pfc; subst; auto;
+                    match goal with
+                    | [ H : T.lt _ _, H' : T.eq _ _ |- _ ]
+                      => now first [ rewrite -> H' in H | rewrite <- H' in H ]
+                    end
+                  | intro f; apply pf; hnf in *; intros; apply f; constructor; (assumption + reflexivity)
+                  | intro f; inversion pfc; eapply M.Raw.MX.lt_irrefl; (idtac + etransitivity); (eassumption + (eapply f; constructor; (idtac + symmetry); (eassumption + reflexivity))) ].
+    Defined.
+    Fixpoint M_Raw_bst_dec t : { M.Raw.bst t } + {~ M.Raw.bst t}.
+    Proof.
+      refine match t with
+             | M.Raw.Leaf => left _
+             | M.Raw.Node z l n r
+               => match M_Raw_bst_dec l, M_Raw_bst_dec r, M_Raw_lt_tree_dec n l, M_Raw_gt_tree_dec n r with
+                  | right pf, _, _, _ => right _
+                  | _, right pf, _, _ => right _
+                  | _, _, right pf, _ => right _
+                  | _, _, _, right pf => right _
+                  | left p1, left p2, left p3, left p4 => left _
+                  end
+             end;
+        try solve [ constructor; assumption
+                  | inversion 1; subst; auto ].
+    Defined.
+    Definition M_Raw_bstb t := if M_Raw_bst_dec t then true else false.
+    Definition M_Raw_bstb_bst t : M_Raw_bstb t = true -> M.Raw.bst t.
+    Proof.
+      cbv [M_Raw_bstb]; destruct M_Raw_bst_dec; auto; discriminate.
+    Defined.
+    Definition M_Raw_bstb_bst_alt t : M.Raw.bst t -> M_Raw_bstb t = true.
+    Proof.
+      cbv [M_Raw_bstb]; destruct M_Raw_bst_dec; auto; discriminate.
+    Defined.
+    #[export] Instance quote_Raw_bst t : ground_quotable (M.Raw.bst t)
+      := ground_quotable_of_bl (@M_Raw_bstb_bst t) (@M_Raw_bstb_bst_alt t).
+    #[export] Instance quote_Raw_Ok s : ground_quotable (M.Raw.Ok s) := (ltac:(cbv [M.Raw.Ok]; exact _)).
+    #[export] Instance quote_t : ground_quotable M.t := (ltac:(induction 1; exact _)).
+  End with_t.
+End QuoteMSetAVL.
+
+Module QuoteLevelSet := QuoteMSetAVL Level LevelSet.
+#[export] Instance quote_LevelSet_t : ground_quotable LevelSet.t := QuoteLevelSet.quote_t.
+Module QuoteConstraintSet := QuoteMSetAVL UnivConstraint ConstraintSet.
+#[export] Instance quote_ConstraintType_t : ground_quotable ConstraintType.t := ltac:(destruct 1; exact _).
+#[export] Instance quote_ConstraintSet_t : ground_quotable ConstraintSet.t := QuoteConstraintSet.quote_t.
 #[export] Instance quote_ContextSet_t : ground_quotable ContextSet.t := (ltac:(induction 1; exact _)).
+#[export] Instance quote_Retroknowledge_t : ground_quotable Environment.Retroknowledge.t := (ltac:(induction 1; exact _)).
+#[export] Instance quote_universes_decl : ground_quotable universes_decl := (ltac:(induction 1; exact _)).
+#[export] Instance quote_constant_body : ground_quotable constant_body := (ltac:(induction 1; exact _)).
+#[export] Instance quote_recursivity_kind : ground_quotable recursivity_kind := (ltac:(induction 1; exact _)).
+#[export] Instance quote_allowed_eliminations : ground_quotable allowed_eliminations := (ltac:(induction 1; exact _)).
+#[export] Instance quote_constructor_body : ground_quotable constructor_body := (ltac:(induction 1; exact _)).
+#[export] Instance quote_projection_body : ground_quotable projection_body := (ltac:(induction 1; exact _)).
+#[export] Instance quote_one_inductive_body : ground_quotable one_inductive_body := (ltac:(induction 1; exact _)).
+#[export] Instance quote_Variance_t : ground_quotable Variance.t := (ltac:(induction 1; exact _)).
+#[export] Instance quote_mutual_inductive_body : ground_quotable mutual_inductive_body := (ltac:(induction 1; exact _)).
+#[export] Instance quote_global_decl : ground_quotable global_decl := (ltac:(induction 1; exact _)).
+#[export] Instance quote_global_declarations : ground_quotable global_declarations := (ltac:(induction 1; exact _)).
 #[export] Instance quote_global_env : ground_quotable global_env := (ltac:(induction 1; exact _)).
-Print global_env_ext.
 #[export] Instance quote_global_env_ext : ground_quotable global_env_ext := (ltac:(induction 1; exact _)).
 
 Module Import Primitive.
@@ -291,6 +315,12 @@ Module Import Typing.
   induction 1; try exact _.
   all: try make_quotation_of_goal ().
   pose (_ : quotation_of Σ).
+  pose (_ : quotation_of Γ).
+  pose (_ : quotation_of n).
+  pose (_ : quotation_of decl).
+  pose (_ : quotation_of e).
+  Set Printing All.
+  pose (_ : quotation_of a).
 Module Import PCUICTyping.
   #[export] Instance quote_All_local_env {typing} {qtyping : quotation_of typing} {quote_typing : forall Γ t T, ground_quotable (typing Γ t T)} {Γ} {qΓ : quotation_of Γ} : ground_quotable (@PCUICTyping.All_local_env typing Γ) := (ltac:(induction 1; exact _)).
   #[local] Hint Extern 1 (_ = _) => reflexivity : typeclass_instances.
