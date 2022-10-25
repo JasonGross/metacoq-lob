@@ -1,5 +1,4 @@
 From Coq Require Import MSetInterface MSetList MSetAVL MSetFacts MSetProperties MSetDecide.
-Require Import Coq.derive.Derive.
 Require Import Coq.Bool.Bool.
 From MetaCoq.Lob.Util.Tactics Require Import BreakMatch.
 From MetaCoq.Template Require Import utils All.
@@ -74,6 +73,14 @@ Ltac make_quotation_of_goal _ :=
 #[export]
  Hint Extern 1 (ground_quotable match ?t with _ => _ end) => is_var t; destruct t : typeclass_instances.
 
+Ltac quote_true_ground_goal _ :=
+  lazymatch goal with
+  | [ H : _ |- quotation_of _ ]
+    => clear H; quote_true_ground_goal ()
+  | [ |- quotation_of ?x ] => exact <% x %>
+  end.
+#[export]
+ Hint Extern 1 (quotation_of _) => quote_true_ground_goal () : typeclass_instances.
 
 #[export] Typeclasses Opaque quotation_of.
 
@@ -91,11 +98,32 @@ Ltac make_quotation_of_goal _ :=
 #[export] Instance quote_prod {A B} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (A × B) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_sigT {A P} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} : ground_quotable (@sigT A P) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_and {A B : Prop} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (A /\ B) := (ltac:(destruct 1; exact _)).
+#[export] Instance quote_is_true_or_l {b} {P : Prop} {qP : quotation_of P} {quoteP : ground_quotable P} : ground_quotable (is_true b \/ P).
+Proof.
+  destruct b; intro H; [ | assert (H' : P) by now destruct H ].
+  all: [ > let f := match goal with |- ?f _ => f end in
+           change (f (or_introl eq_refl))
+       | let f := match goal with |- ?f _ => f end in
+         change (f (or_intror H')) ].
+  all: exact _.
+Defined.
+#[export] Instance quote_is_true_or_r {b} {P : Prop} {qP : quotation_of P} {quoteP : ground_quotable P} : ground_quotable (P \/ is_true b).
+Proof.
+  destruct b; intro H; [ | assert (H' : P) by now destruct H ].
+  all: [ > let f := match goal with |- ?f _ => f end in
+           change (f (or_intror eq_refl))
+       | let f := match goal with |- ?f _ => f end in
+         change (f (or_introl H')) ].
+  all: exact _.
+Defined.
 #[export] Instance quote_Level_t : ground_quotable Level.t := (ltac:(induction 1; exact _)).
 #[export] Instance quote_LevelExprSet_Raw_elt : ground_quotable LevelExprSet.Raw.elt := (ltac:(induction 1; exact _)).
 #[export] Instance quote_LevelExprSet_Raw_t : ground_quotable LevelExprSet.Raw.t := (ltac:(induction 1; exact _)).
 #[export] Instance quotation_of_eq_refl {A} {qA : quotation_of A} {a : A} {qa : quotation_of a} : quotation_of (@eq_refl A a) := _.
 #[export] Instance quote_eq {A} {qA : quotation_of A} {qA : ground_quotable A} {x y : A} : ground_quotable (x = y :> A) := (ltac:(intros []; exact _)).
+#[export] Instance quote_All2 {A B R lsA lsB} {qA : quotation_of A} {qB : quotation_of B} {qR : quotation_of R} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteR : forall x y, ground_quotable (R x y)} : ground_quotable (@All2 A B R lsA lsB) := ltac:(induction 1; exact _).
+#[export] Instance quote_All2i {A B R n lsA lsB} {qA : quotation_of A} {qB : quotation_of B} {qR : quotation_of R} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteR : forall n x y, ground_quotable (R n x y)} : ground_quotable (@All2i A B R n lsA lsB) := ltac:(induction 1; exact _).
+
 #[export] Instance quote_LevelExprSet_Raw_Ok s : ground_quotable (LevelExprSet.Raw.Ok s) := (ltac:(cbv [LevelExprSet.Raw.Ok]; exact _)).
 #[export] Instance quote_LevelExprSet_t : ground_quotable LevelExprSet.t := (ltac:(induction 1; exact _)).
 #[export] Instance quote_LevelAlgExpr_t : ground_quotable LevelAlgExpr.t := (ltac:(induction 1; exact _)).
@@ -151,19 +179,6 @@ Proof.
   intro p; destruct (quote_Nat_le_dec x y) as [[? q]|?]; [ exact q | exfalso; auto ].
 Defined.
 #[export] Instance quote_Nat_lt x y : ground_quotable (Nat.lt x y) := _.
-Derive Level_lt_' SuchThat (forall x y, Level_lt_' x y <-> Level.lt_ x y) As Level_lt_'_lt_.
-Proof.
-  instantiate (1:=ltac:(intros x y; destruct x, y)) in (value of Level_lt_').
-  destruct x, y; subst Level_lt_'; cbn;
-    (split;
-     [ first [ solve [ instantiate (1 := True); constructor ] | constructor | idtac ]
-     | first [ solve [ instantiate (1 := False); inversion 1 ] | inversion 1 | idtac ] ]);
-    let G := match goal with |- ?G => G end in
-    tryif has_evar G
-    then idtac
-    else (try solve [ exact I | inversion 1 ]);
-    eassumption.
-Defined.
 
 Definition ground_quotable_of_bp {b P} (H : b = true -> P) {qH : quotation_of H} (H_for_safety : P -> b = true) : ground_quotable P.
 Proof.
@@ -333,84 +348,6 @@ Module QuoteMSetListWithLeibniz (T : OrderedTypeWithLeibniz) (M : MSetList_MakeW
   Proof.
     cbv [M.In]; apply Raw_In_dec.
   Defined.
-  (*
-  Section with_t.
-    Context {quote_T_t : ground_quotable T.t}.
-
-    #[export] Instance quote_M_Raw_t : ground_quotable M.Raw.t := (ltac:(induction 1; exact _)).
-    Fixpoint M_Raw_lt_tree_dec x t : { M.Raw.lt_tree x t } + {~ M.Raw.lt_tree x t}.
-    Proof.
-      refine match t with
-             | M.Raw.Leaf => left _
-             | M.Raw.Node z l n r
-               => match T.compare n x as c, M_Raw_lt_tree_dec x l, M_Raw_lt_tree_dec x r return CompareSpec _ _ _ c -> _ with
-                  | Lt, left p2, left p3 => fun pfc => left _
-                  | _, right pf, _ => fun pfc => right _
-                  | _, _, right pf => fun pfc => right _
-                  | _, _, _ => fun pfc => right _
-                  end (T.compare_spec _ _)
-             end;
-        try solve [ inversion 1; inversion pfc
-                  | inversion 1; inversion pfc; subst; auto;
-                    match goal with
-                    | [ H : T.lt _ _, H' : T.eq _ _ |- _ ]
-                      => now first [ rewrite -> H' in H | rewrite <- H' in H ]
-                    end
-                  | intro f; apply pf; hnf in *; intros; apply f; constructor; (assumption + reflexivity)
-                  | intro f; inversion pfc; eapply M.Raw.MX.lt_irrefl; (idtac + etransitivity); (eassumption + (eapply f; constructor; (idtac + symmetry); (eassumption + reflexivity))) ].
-    Defined.
-    Fixpoint M_Raw_gt_tree_dec x t : { M.Raw.gt_tree x t } + {~ M.Raw.gt_tree x t}.
-    Proof.
-      refine match t with
-             | M.Raw.Leaf => left _
-             | M.Raw.Node z l n r
-               => match T.compare n x as c, M_Raw_gt_tree_dec x l, M_Raw_gt_tree_dec x r return CompareSpec _ _ _ c -> _ with
-                  | Gt, left p2, left p3 => fun pfc => left _
-                  | _, right pf, _ => fun pfc => right _
-                  | _, _, right pf => fun pfc => right _
-                  | _, _, _ => fun pfc => right _
-                  end (T.compare_spec _ _)
-             end;
-        try solve [ inversion 1; inversion pfc
-                  | inversion 1; inversion pfc; subst; auto;
-                    match goal with
-                    | [ H : T.lt _ _, H' : T.eq _ _ |- _ ]
-                      => now first [ rewrite -> H' in H | rewrite <- H' in H ]
-                    end
-                  | intro f; apply pf; hnf in *; intros; apply f; constructor; (assumption + reflexivity)
-                  | intro f; inversion pfc; eapply M.Raw.MX.lt_irrefl; (idtac + etransitivity); (eassumption + (eapply f; constructor; (idtac + symmetry); (eassumption + reflexivity))) ].
-    Defined.
-    Fixpoint M_Raw_bst_dec t : { M.Raw.bst t } + {~ M.Raw.bst t}.
-    Proof.
-      refine match t with
-             | M.Raw.Leaf => left _
-             | M.Raw.Node z l n r
-               => match M_Raw_bst_dec l, M_Raw_bst_dec r, M_Raw_lt_tree_dec n l, M_Raw_gt_tree_dec n r with
-                  | right pf, _, _, _ => right _
-                  | _, right pf, _, _ => right _
-                  | _, _, right pf, _ => right _
-                  | _, _, _, right pf => right _
-                  | left p1, left p2, left p3, left p4 => left _
-                  end
-             end;
-        try solve [ constructor; assumption
-                  | inversion 1; subst; auto ].
-    Defined.
-    Definition M_Raw_bstb t := if M_Raw_bst_dec t then true else false.
-    Definition M_Raw_bstb_bst t : M_Raw_bstb t = true -> M.Raw.bst t.
-    Proof.
-      cbv [M_Raw_bstb]; destruct M_Raw_bst_dec; auto; discriminate.
-    Defined.
-    Definition M_Raw_bstb_bst_alt t : M.Raw.bst t -> M_Raw_bstb t = true.
-    Proof.
-      cbv [M_Raw_bstb]; destruct M_Raw_bst_dec; auto; discriminate.
-    Defined.
-    #[export] Instance quote_Raw_bst t : ground_quotable (M.Raw.bst t)
-      := ground_quotable_of_bp (@M_Raw_bstb_bst t) (@M_Raw_bstb_bst_alt t).
-    #[export] Instance quote_Raw_Ok s : ground_quotable (M.Raw.Ok s) := (ltac:(cbv [M.Raw.Ok]; exact _)).
-    #[export] Instance quote_t : ground_quotable M.t := (ltac:(induction 1; exact _)).
-  End with_t.
-*)
 End QuoteMSetListWithLeibniz.
 
 Module QuoteLevelSet := QuoteMSetAVL Level LevelSet.
@@ -459,20 +396,79 @@ Definition wf_universe_pb Σ s : wf_universe Σ s -> wf_universeb Σ s = true :=
 
 #[export] Instance quote_wf_universe {Σ s} : ground_quotable (@wf_universe Σ s) := ground_quotable_of_bp (@wf_universe_bp Σ s) (@wf_universe_pb Σ s).
 
-#[export] Instance quote_valid_constraints {cf ϕ cstrs} : ground_quotable (@valid_constraints cf ϕ cstrs).
-cbv [valid_constraints]; destruct uctx; try exact _.
-repeat apply @quote_and; try exact _.
-#[export] Instance quote_consistent_instance {H lvls ϕ uctx u} : ground_quotable (@consistent_instance H lvls ϕ uctx u).
-cbv [consistent_instance]; destruct uctx; try exact _.
-repeat apply @quote_and; try exact _.
-Print valid_constraints.
-Print valid_constraints.
-#[export] Instance quote_consistent_instance_ext {H Σ u i} : ground_quotable (@consistent_instance_ext H Σ u i).
-cbv [consistent_instance_ext].
-cbv [consistent_instance_ext].
+Definition valid_constraints_dec cf ϕ cstrs : {@valid_constraints cf ϕ cstrs} + {~@valid_constraints cf ϕ cstrs}.
+Proof.
+  pose proof (fun G uctx a b c => check_constraints_spec (make_graph G) (uctx, ϕ) a b c cstrs) as H1.
+  pose proof (fun G uctx a b c => check_constraints_complete (make_graph G) (uctx, ϕ) a b c cstrs) as H2.
+  cbn [fst snd] in *.
+  cbv [valid_constraints] in *; break_match; try solve [ left; exact I ].
+  specialize (fun G uctx a b c => H2 G uctx a b c eq_refl).
+  cbv [is_graph_of_uctx on_Some global_uctx_invariants uctx_invariants] in *; cbn [fst snd] in *.
+Admitted.
 
+Definition valid_constraints_b cf ϕ cstrs : bool := b_of_dec (@valid_constraints_dec cf ϕ cstrs).
+Definition valid_constraints_bp cf ϕ cstrs : @valid_constraints_b cf ϕ cstrs = true -> @valid_constraints cf ϕ cstrs := bp_of_dec.
+Definition valid_constraints_pb cf ϕ cstrs : @valid_constraints cf ϕ cstrs -> @valid_constraints_b cf ϕ cstrs = true := pb_of_dec.
+#[export] Instance quote_valid_constraints {cf ϕ cstrs} : ground_quotable (@valid_constraints cf ϕ cstrs)
+  := ground_quotable_of_bp (@valid_constraints_bp cf ϕ cstrs) (@valid_constraints_pb cf ϕ cstrs).
+#[export] Instance quote_consistent_instance {H lvls ϕ uctx u} : ground_quotable (@consistent_instance H lvls ϕ uctx u) := ltac:(cbv [consistent_instance]; destruct uctx; try exact _).
+#[export] Instance quote_consistent_instance_ext {H Σ u i} : ground_quotable (@consistent_instance_ext H Σ u i) := _.
+
+Definition eq_levelalg_dec {cf ϕ u u'} : {@eq_levelalg cf ϕ u u'} + {~@eq_levelalg cf ϕ u u'}.
+Proof.
+  destruct (gc_eq_levelalg_iff ϕ u u') as [f1 f2].
+  cbv [on_Some_or_None] in *.
+  destruct gc_of_constraints; auto.
+  cbv [gc_eq_levelalg] in *.
+  cbv [gc_eq0_levelalg] in *.
+  Print gc_satisfies.
+  2: {
+  break_innermost_match_hyps.
+#[export] Instance quote_eq_levelalg {cf ϕ u u'} : ground_quotable (@eq_levelalg cf ϕ u u').
+Proof.
+  destruct (gc_eq_levelalg_iff ϕ u u') as [f1 f2].
+  intro p.
+  let f := match goal with |- ?f _ => f end in
+  change (f (f2 (f1 p))).
+  generalize (f1 p); clear; cbv [on_Some_or_None].
+  break_innermost_match.
+Check gc_eq_levelalg_iff.
+
+  cbv [eq_levelalg].
+  := ltac:(cbv [eq_universe_]; exact _).
+#[export] Instance quote_eq_universe_ {CS eq_levelalg ϕ s s'} {qeq_levelalg : forall u u', ground_quotable (eq_levelalg ϕ u u':Prop)} : ground_quotable (@eq_universe_ CS eq_levelalg ϕ s s') := ltac:(cbv [eq_universe_]; exact _).
+#[export] Instance quote_eq_universe {cf ϕ s s'} : ground_quotable (@eq_universe cf ϕ s s').
+Proof.
+  cbv [eq_universe].
+Print is_allowed_elimination.
+Print is_lSet.
+#[export] Instance quote_is_lSet {cf ϕ s} : ground_quotable (@is_lSet cf ϕ s).
+Proof.
+  cbv [is_lSet].
+  exact _.
+#[export] Instance quote_is_allowed_elimination {cf ϕ allowed u} : ground_quotable (@is_allowed_elimination cf ϕ allowed u).
+Proof.
+  destruct allowed; cbv [is_allowed_elimination]; try exact _.
+  destruct is_propositional; try exact _.
+  all: apply @quote_is_true_or_l; try exact _.
+  cbv [is_true].
+  Print is_propositional.
+  Print is_lSet.
+Print allowed_eliminations.
+is_allowed_elimination Σ (ind_kelim idecl) ps
+
+
+(*
+Print ctx_inst.
+Print is_allowed_elimination.
+ctx_inst typing Σ Γ (pparams p ++ indices)
+         (rev (ind_params mdecl,,, ind_indices idecl)@[puinst p])
+  t1 : Σ;;; Γ,,, predctx |- preturn p : tSort ps
+  i : is_allowed_elimination Σ (ind_kelim idecl) ps
+*)
 Module Import Typing.
-  #[export] Instance quote_All_local_env {typing} {qtyping : quotation_of typing} {quote_typing : forall Γ t T, ground_quotable (typing Γ t T)} {Γ} {qΓ : quotation_of Γ} : ground_quotable (@All_local_env typing Γ) := (ltac:(induction 1; exact _)).
+  #[export] Instance quote_ctx_inst {Σ Γ} {typing} {qtyping : quotation_of typing} {quote_typing : forall t T, ground_quotable (typing Σ Γ t T)} {inst Δ} : ground_quotable (@ctx_inst typing Σ Γ inst Δ) := (ltac:(induction 1; exact _)).
+  #[export] Instance quote_All_local_env {typing} {qtyping : quotation_of typing} {quote_typing : forall Γ t T, ground_quotable (typing Γ t T)} {Γ} : ground_quotable (@All_local_env typing Γ) := (ltac:(induction 1; exact _)).
   #[local] Hint Extern 1 (_ = _) => reflexivity : typeclass_instances.
   #[export] Instance quote_lift_judgment {check infer_sort}
    {Σ Γ t T}
@@ -490,13 +486,13 @@ Module Import Typing.
     end.
   Defined.
   #[local] Hint Extern 1 => progress (intros; subst) : typeclass_instances.
+  #[local] Hint Extern 1 => progress cbv beta zeta : typeclass_instances.
   #[export] Instance quote_lift_typing {typing} {Σ Γ t T}
    {quote_typing : forall T', Typ T' = T -> ground_quotable (typing Σ Γ t T')}
    {quote_typing' : forall U, T = Sort -> quotation_of U -> ground_quotable (typing Σ Γ t (tSort U))}
    {qtyping : T = Sort -> quotation_of (typing Σ Γ t)}
     : ground_quotable (@lift_typing typing Σ Γ t T)
     := ltac:(cbv [lift_typing]; exact _).
-  Print wf_universe.
   Fixpoint quote_typing' {H Σ Γ t1 t2} (t : @typing H Σ Γ t1 t2) : quotation_of t
   with quote_typing_spine' {H Σ Γ t1 s t2} (t : @typing_spine H Σ Γ t1 s t2) : quotation_of t.
   Proof.
@@ -510,16 +506,48 @@ Module Import Typing.
     exact _.
     exact _.
     exact _.
+    exact _.
+    exact _.
+    exact _.
     all: revgoals. 2: exact _. all: revgoals.
+    2: exact _.
     Guarded.
     pose (_ : quotation_of H).
     pose (_ : quotation_of Σ).
     pose (_ : quotation_of Γ).
-    pose (_ : quotation_of cst).
-    pose (_ : quotation_of u).
-    pose (_ : quotation_of a).
-    pose (_ : quotation_of decl).
+    pose (_ : quotation_of ci).
+    pose (_ : quotation_of p).
+    pose (_ : quotation_of c).
+    pose (_ : quotation_of brs).
+    pose (_ : quotation_of indices).
+    pose (_ : quotation_of ps).
+    pose (_ : quotation_of mdecl).
+    pose (_ : quotation_of idecl).
     pose (_ : quotation_of isdecl).
+    pose (_ : quotation_of e).
+    pose (_ : quotation_of e0).
+    pose (_ : quotation_of c0).
+    pose (_ : quotation_of t1).
+    pose (_ : quotation_of t2).
+    pose (_ : quotation_of e1).
+    pose (_ : quotation_of c1).
+    pose (_ : quotation_of a).
+    assert (quotation_of a0).
+    { apply @quote_All2i; try exact _.
+
+      clear.
+      clear.
+      2: intros; cbv zeta beta; try exact _.
+    pose (_ : quotation_of a0).
+    pose (_ : quotation_of i).
+    Search valid_constraints.
+    Print check_constraints.
+    Print check_gc_constraints.
+    Print Good
+    Print satisfies0.
+    Print valuation.
+    cbv [consistent_instance_ext consistent_instance valid_constraints valid_constraints0 satisfies] in c.
+
     Print consistent_instance_ext.
     pose (_ : quotation_of c).
     pose (_ : quotation_of e).
