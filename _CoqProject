@@ -1,4 +1,8 @@
 -R theories MetaCoq.Lob
 -arg -w -arg +implicit-core-hint-db,+implicits-in-term,+non-reversible-notation,+deprecated-intros-until-0,+deprecated-focus,+unused-intro-pattern,+deprecated-hint-constr,+fragile-hint-constr,+variable-collision,+unexpected-implicit-declaration,+omega-is-deprecated,+deprecated-instantiate-syntax,+non-recursive,+deprecated-hint-rewrite-without-locality,+deprecated-hint-without-locality,+deprecated-instance-without-locality,+undeclared-scope,+deprecated-typeclasses-transparency-without-locality,+future-coercion-class-field
-./theories/Lob.v
-./theories/QuoteGround.v
+theories/Lob.v
+theories/PCUIC/QuoteGround.v
+theories/QuoteGround.v
+theories/Template/QuoteGround.v
+theories/Util/Tactics/BreakMatch.v
+theories/Util/Tactics/Head.v

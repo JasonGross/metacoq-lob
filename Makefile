@@ -3,7 +3,7 @@
 SHOW := $(if $(VERBOSE),@true "",@echo "")
 HIDE := $(if $(VERBOSE),,@)
 
-ifneq ($(wildcard ../.git),)
+ifneq ($(wildcard .git),)
 FILE_FINDER := git ls-files
 else
 $(warning Not a git clone, using find instead)

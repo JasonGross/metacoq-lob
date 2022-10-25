@@ -113,7 +113,7 @@ Proof.
   hnf. fix quote_term 1; change (ground_quotable term) in quote_term; destruct 1.
   all: make_quotation_of_goal ().
 Defined.
-
+(*
 Module Export PCUICEnvironment.
   #[export] Instance quote_context : ground_quotable PCUICAst.PCUICEnvironment.context := _.
 End PCUICEnvironment.
@@ -159,3 +159,4 @@ Module Import PCUICTyping.
     pose (_ : quotation_of a).
   Defined.
 Inductive typing `{checker_flags} (Σ : global_env_ext) (Γ : context) : term -> term -> Type :=
+*)
