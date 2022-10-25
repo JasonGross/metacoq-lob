@@ -1,7 +1,8 @@
 From Coq Require Import MSetInterface MSetList MSetAVL MSetFacts MSetProperties MSetDecide.
 Require Import Coq.Bool.Bool.
+From MetaCoq.Lob Require Import TermUtils.
 From MetaCoq.Lob.Util.Tactics Require Import BreakMatch.
-From MetaCoq.Template Require Import utils All.
+From MetaCoq.Template Require Import MonadBasicAst MonadAst utils All.
 Require Import Coq.Lists.List.
 Import ListNotations.
 
@@ -62,6 +63,50 @@ Proof.
     exact _.
 Defined.
 
+Fixpoint replace_quotation_of {debug : debug_opt} (qt : term) : TemplateMonad term.
+Proof.
+  specialize (replace_quotation_of debug).
+  simple
+    refine
+    (let tmInferQuotation t
+       := (t <- tmUnquote t;;
+           v <- (let '(existT_typed_term _ t) := t in tmInferInstance None (quotation_of t));;
+           match v with
+           | my_Some v => tmReturn v
+           | my_None => (if debug then tmPrint (quotation_of t) else tmReturn tt);; tmFail "No typeclass instance"
+           end) in
+     match qt return TemplateMonad Ast.term with
+     | tRel _
+     | tSort _
+     | tConstruct _ _ _
+     | tInt _
+     | tFloat _
+     | tConst _ _
+     | tInd _ _
+       => ret qt
+     | tVar id
+       => tmInferQuotation qt
+     | tEvar ev args => args <- monad_map replace_quotation_of args;; ret (tEvar ev args)
+     | tLambda na T M => T <- replace_quotation_of T;; M <- replace_quotation_of M;; ret (tLambda na T M)
+     | tApp u v => u <- replace_quotation_of u;; v <- monad_map replace_quotation_of v;; ret (mkApps u v)
+     | tProd na A B => A <- replace_quotation_of A;; B <- replace_quotation_of B;; ret (tProd na A B)
+     | tCast c kind ty => c <- replace_quotation_of c;; ty <- replace_quotation_of ty;; ret (tCast c kind ty)
+     | tLetIn na b ty b' => b <- replace_quotation_of b;; ty <- replace_quotation_of ty;; b' <- replace_quotation_of b';; ret (tLetIn na b ty b')
+     | tProj p c => replace_quotation_of c;; ret (tProj p c)
+     | tFix mfix idx =>
+         mfix' <- monad_map (monad_map_def (TM:=TypeInstance) replace_quotation_of replace_quotation_of) mfix;;
+         ret (tFix mfix' idx)
+     | tCoFix mfix idx =>
+         mfix' <- monad_map (monad_map_def (TM:=TypeInstance) replace_quotation_of replace_quotation_of) mfix;;
+         ret (tCoFix mfix' idx)
+     | tCase ind p c brs =>
+         p' <- monad_map_predicate (TM:=TypeInstance) ret replace_quotation_of replace_quotation_of p;;
+         brs' <- monad_map_branches (TM:=TypeInstance) replace_quotation_of brs;;
+         c <- replace_quotation_of c;;
+         ret (tCase ind p' c brs')
+     end); exact _.
+Defined.
+
 Ltac make_quotation_of_goal _ :=
   let t := match goal with |- quotation_of ?t => t end in
   run_template_program (make_quotation_of t) (fun v => exact v).
@@ -72,6 +117,11 @@ Ltac make_quotation_of_goal _ :=
  Hint Extern 1 (quotation_of match ?t with _ => _ end) => is_var t; destruct t : typeclass_instances.
 #[export]
  Hint Extern 1 (ground_quotable match ?t with _ => _ end) => is_var t; destruct t : typeclass_instances.
+
+#[export]
+ Hint Extern 1 (quotation_of (fun x => @?f x))
+=> run_template_program (replace_quotation_of <% f %>) (fun v => exact v)
+  : typeclass_instances.
 
 Ltac quote_true_ground_goal _ :=
   lazymatch goal with
@@ -98,6 +148,7 @@ Ltac quote_true_ground_goal _ :=
 #[export] Instance quote_prod {A B} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (A × B) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_sigT {A P} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} : ground_quotable (@sigT A P) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_and {A B : Prop} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (A /\ B) := (ltac:(destruct 1; exact _)).
+#[export] Instance quote_and3 {A B C : Prop} {qA : quotation_of A} {qB : quotation_of B} {qC : quotation_of C} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteC : ground_quotable C} : ground_quotable (ssrbool.and3 A B C) := (ltac:(destruct 1; exact _)).
 #[export] Instance quote_is_true_or_l {b} {P : Prop} {qP : quotation_of P} {quoteP : ground_quotable P} : ground_quotable (is_true b \/ P).
 Proof.
   destruct b; intro H; [ | assert (H' : P) by now destruct H ].
@@ -121,7 +172,42 @@ Defined.
 #[export] Instance quote_LevelExprSet_Raw_t : ground_quotable LevelExprSet.Raw.t := (ltac:(induction 1; exact _)).
 #[export] Instance quotation_of_eq_refl {A} {qA : quotation_of A} {a : A} {qa : quotation_of a} : quotation_of (@eq_refl A a) := _.
 #[export] Instance quote_eq {A} {qA : quotation_of A} {qA : ground_quotable A} {x y : A} : ground_quotable (x = y :> A) := (ltac:(intros []; exact _)).
+#[export] Instance quote_All {A R ls} {qA : quotation_of A} {qR : quotation_of R} {quoteA : ground_quotable A} {quoteR : forall x, ground_quotable (R x)} : ground_quotable (@All A R ls) := ltac:(induction 1; exact _).
 #[export] Instance quote_All2 {A B R lsA lsB} {qA : quotation_of A} {qB : quotation_of B} {qR : quotation_of R} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteR : forall x y, ground_quotable (R x y)} : ground_quotable (@All2 A B R lsA lsB) := ltac:(induction 1; exact _).
+(* TODO: Move *)
+Definition Forall2_hd {A B R x xs y ys} (H : @Forall2 A B R (x :: xs) (y :: ys)) : R x y.
+Proof.
+  refine match H in Forall2 _ xs ys return match xs, ys with
+                                           | x :: xs, y :: ys => R x y
+                                           | _, _ => True
+                                           end with
+         | Forall2_nil => I
+         | Forall2_cons _ _ _ _ _ _ => _
+         end; assumption.
+Defined.
+Definition Forall2_tl {A B R x xs y ys} (H : @Forall2 A B R (x :: xs) (y :: ys)) : Forall2 R xs ys.
+Proof.
+  refine match H in Forall2 _ xs ys return match xs, ys with
+                                           | x :: xs, y :: ys => Forall2 R xs ys
+                                           | _, _ => True
+                                           end with
+         | Forall2_nil => I
+         | Forall2_cons _ _ _ _ _ _ => _
+         end; assumption.
+Defined.
+#[export] Instance quote_Forall2 {A B R lsA lsB} {qA : quotation_of A} {qB : quotation_of B} {qR : quotation_of R} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteR : forall x y, ground_quotable (R x y:Prop)} : ground_quotable (@Forall2 A B R lsA lsB).
+Proof.
+  revert lsB; induction lsA as [|a lsA IH], lsB as [|b lsB]; intro pf;
+    try solve [ exfalso; inversion pf ];
+    try (pose proof (Forall2_hd pf);
+         pose proof (Forall2_tl pf));
+    let f := match goal with |- ?f _ => f end in
+    unshelve (let v := open_constr:(f ltac:(econstructor)) in
+              change v);
+    try (eapply Forall2_hd; eassumption);
+    try (eapply Forall2_tl; eassumption);
+    try exact _.
+Defined.
 #[export] Instance quote_All2i {A B R n lsA lsB} {qA : quotation_of A} {qB : quotation_of B} {qR : quotation_of R} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteR : forall n x y, ground_quotable (R n x y)} : ground_quotable (@All2i A B R n lsA lsB) := ltac:(induction 1; exact _).
 
 #[export] Instance quote_LevelExprSet_Raw_Ok s : ground_quotable (LevelExprSet.Raw.Ok s) := (ltac:(cbv [LevelExprSet.Raw.Ok]; exact _)).
@@ -372,6 +458,7 @@ Module QuoteLevelExprSet := QuoteMSetListWithLeibniz LevelExpr LevelExprSet.
 #[export] Instance quote_global_env : ground_quotable global_env := (ltac:(induction 1; exact _)).
 #[export] Instance quote_global_env_ext : ground_quotable global_env_ext := (ltac:(induction 1; exact _)).
 #[export] Instance quote_config_checker_flags : ground_quotable config.checker_flags := (ltac:(induction 1; exact _)).
+#[export] Instance quote_primitive_invariants cdecl : ground_quotable (primitive_invariants cdecl) := _.
 
 Module Import Primitive.
   #[export] Instance quote_prim_tag : ground_quotable Primitive.prim_tag := (ltac:(induction 1; exact _)).
@@ -421,51 +508,53 @@ Proof.
   destruct gc_of_constraints; auto.
   cbv [gc_eq_levelalg] in *.
   cbv [gc_eq0_levelalg] in *.
-  Print gc_satisfies.
-  2: {
-  break_innermost_match_hyps.
-#[export] Instance quote_eq_levelalg {cf ϕ u u'} : ground_quotable (@eq_levelalg cf ϕ u u').
-Proof.
-  destruct (gc_eq_levelalg_iff ϕ u u') as [f1 f2].
-  intro p.
-  let f := match goal with |- ?f _ => f end in
-  change (f (f2 (f1 p))).
-  generalize (f1 p); clear; cbv [on_Some_or_None].
-  break_innermost_match.
-Check gc_eq_levelalg_iff.
+Admitted.
+Definition eq_levelalg_b cf ϕ u u' : bool := b_of_dec (@eq_levelalg_dec cf ϕ u u').
+Definition eq_levelalg_bp cf ϕ u u' : @eq_levelalg_b cf ϕ u u' = true -> @eq_levelalg cf ϕ u u' := bp_of_dec.
+Definition eq_levelalg_pb cf ϕ u u' : @eq_levelalg cf ϕ u u' -> @eq_levelalg_b cf ϕ u u' = true := pb_of_dec.
+#[export] Instance quote_eq_levelalg {cf ϕ u u'} : ground_quotable (@eq_levelalg cf ϕ u u')
+  := ground_quotable_of_bp (@eq_levelalg_bp cf ϕ u u') (@eq_levelalg_pb cf ϕ u u').
 
-  cbv [eq_levelalg].
-  := ltac:(cbv [eq_universe_]; exact _).
 #[export] Instance quote_eq_universe_ {CS eq_levelalg ϕ s s'} {qeq_levelalg : forall u u', ground_quotable (eq_levelalg ϕ u u':Prop)} : ground_quotable (@eq_universe_ CS eq_levelalg ϕ s s') := ltac:(cbv [eq_universe_]; exact _).
-#[export] Instance quote_eq_universe {cf ϕ s s'} : ground_quotable (@eq_universe cf ϕ s s').
-Proof.
-  cbv [eq_universe].
-Print is_allowed_elimination.
-Print is_lSet.
-#[export] Instance quote_is_lSet {cf ϕ s} : ground_quotable (@is_lSet cf ϕ s).
-Proof.
-  cbv [is_lSet].
+#[export] Instance quote_eq_universe {cf ϕ s s'} : ground_quotable (@eq_universe cf ϕ s s') := _.
+#[export] Instance quote_is_lSet {cf ϕ s} : ground_quotable (@is_lSet cf ϕ s) := _.
+#[export] Instance quote_is_allowed_elimination {cf ϕ allowed u} : ground_quotable (@is_allowed_elimination cf ϕ allowed u) := ltac:(destruct allowed; exact _).
+#[export] Instance quote_conv_pb : ground_quotable conv_pb := ltac:(destruct 1; exact _).
+Module Import TermEquality.
+  #[export] Instance quote_eq_term_upto_univ_napp {H Re Rle napp t u} {qRe : quotation_of Re} {qRle : quotation_of Rle} {quote_Re : forall x y, ground_quotable (Re x y:Prop)} {quote_Rle : forall x y, ground_quotable (Rle x y:Prop)} : ground_quotable (@TermEquality.eq_term_upto_univ_napp H Re Rle napp t u).
+  Proof.
+    intro v; revert v.
+    cbv [ground_quotable]; revert Re Rle napp t u qRe qRle quote_Re quote_Rle.
+    fix quote_eq_term_upto_univ_napp 10.
+    change (forall Re Rle napp t u, quotation_of Re -> quotation_of Rle -> (forall x y, ground_quotable (Re x y:Prop)) -> (forall x y, ground_quotable (Rle x y:Prop)) -> ground_quotable (@TermEquality.eq_term_upto_univ_napp H Re Rle napp t u)) in quote_eq_term_upto_univ_napp.
+    intros; destruct v.
+    exact _.
+    exact _.
+    exact _.
+    exact _.
+    exact _.
+    exact _.
+    Print TermEquality.R_global_instance.
+    Print TermEquality.R_opt_variance.
+
+    Print T
+    Guarded.
+    assert (quotation_of a).
+    { apply @quote_All2; try exact _.
+    pose (_ : quotation_of a).
+    Guarded.
   exact _.
-#[export] Instance quote_is_allowed_elimination {cf ϕ allowed u} : ground_quotable (@is_allowed_elimination cf ϕ allowed u).
-Proof.
-  destruct allowed; cbv [is_allowed_elimination]; try exact _.
-  destruct is_propositional; try exact _.
-  all: apply @quote_is_true_or_l; try exact _.
-  cbv [is_true].
-  Print is_propositional.
-  Print is_lSet.
-Print allowed_eliminations.
-is_allowed_elimination Σ (ind_kelim idecl) ps
+  Guarded.
+  exact _.
+  try exact _.
 
 
-(*
-Print ctx_inst.
-Print is_allowed_elimination.
-ctx_inst typing Σ Γ (pparams p ++ indices)
-         (rev (ind_params mdecl,,, ind_indices idecl)@[puinst p])
-  t1 : Σ;;; Γ,,, predctx |- preturn p : tSort ps
-  i : is_allowed_elimination Σ (ind_kelim idecl) ps
-*)
+  #[export] Instance quote_compare_term {H pb Σ ϕ t u} : ground_quotable (@TermEquality.compare_term H pb Σ ϕ t u). induction 1; try exact _.
+pose (_ : quotation_of c).
+
+#[export] Instance quote_cumul_gen {H Σ Γ pb t u} : ground_quotable (@cumul_gen H Σ Γ pb t u). induction 1; try exact _.
+pose (_ : quotation_of c).
+
 Module Import Typing.
   #[export] Instance quote_ctx_inst {Σ Γ} {typing} {qtyping : quotation_of typing} {quote_typing : forall t T, ground_quotable (typing Σ Γ t T)} {inst Δ} : ground_quotable (@ctx_inst typing Σ Γ inst Δ) := (ltac:(induction 1; exact _)).
   #[export] Instance quote_All_local_env {typing} {qtyping : quotation_of typing} {quote_typing : forall Γ t T, ground_quotable (typing Γ t T)} {Γ} : ground_quotable (@All_local_env typing Γ) := (ltac:(induction 1; exact _)).
@@ -477,14 +566,7 @@ Module Import Typing.
     : ground_quotable (@lift_judgment check infer_sort Σ Γ t T)
     := (ltac:(cbv [lift_judgment]; exact _)).
   #[export] Instance quote_infer_sort {sorting} {Σ Γ T} {qsorting : quotation_of (sorting Σ Γ T)} {quote_sorting : forall U, quotation_of U -> ground_quotable (sorting Σ Γ T U)} : ground_quotable (@infer_sort sorting Σ Γ T) := @quote_sigT _ (sorting Σ Γ T) _ _ _ _.
-  #[local] Instance quotation_of_compose_tSort {A} (f : _ -> A) {qf : quotation_of f} : quotation_of (fun s => f (tSort s)).
-  Proof.
-    lazymatch constr:(<% fun s => f (tSort s) %>) with
-    | context qt[tVar "f"]
-      => let qt := context qt[qf] in
-         exact qt
-    end.
-  Defined.
+  #[local] Instance quotation_of_compose_tSort {A} (f : _ -> A) {qf : quotation_of f} : quotation_of (fun s => f (tSort s)) := _.
   #[local] Hint Extern 1 => progress (intros; subst) : typeclass_instances.
   #[local] Hint Extern 1 => progress cbv beta zeta : typeclass_instances.
   #[export] Instance quote_lift_typing {typing} {Σ Γ t T}
@@ -493,6 +575,7 @@ Module Import Typing.
    {qtyping : T = Sort -> quotation_of (typing Σ Γ t)}
     : ground_quotable (@lift_typing typing Σ Γ t T)
     := ltac:(cbv [lift_typing]; exact _).
+
   Fixpoint quote_typing' {H Σ Γ t1 t2} (t : @typing H Σ Γ t1 t2) : quotation_of t
   with quote_typing_spine' {H Σ Γ t1 s t2} (t : @typing_spine H Σ Γ t1 s t2) : quotation_of t.
   Proof.
@@ -509,32 +592,44 @@ Module Import Typing.
     exact _.
     exact _.
     exact _.
+    exact _.
+    exact _.
+    exact _.
+    exact _.
+    exact _.
+    exact _.
     all: revgoals. 2: exact _. all: revgoals.
-    2: exact _.
     Guarded.
     pose (_ : quotation_of H).
     pose (_ : quotation_of Σ).
     pose (_ : quotation_of Γ).
-    pose (_ : quotation_of ci).
-    pose (_ : quotation_of p).
-    pose (_ : quotation_of c).
-    pose (_ : quotation_of brs).
-    pose (_ : quotation_of indices).
-    pose (_ : quotation_of ps).
-    pose (_ : quotation_of mdecl).
-    pose (_ : quotation_of idecl).
-    pose (_ : quotation_of isdecl).
-    pose (_ : quotation_of e).
-    pose (_ : quotation_of e0).
-    pose (_ : quotation_of c0).
     pose (_ : quotation_of t1).
+    pose (_ : quotation_of A).
+    pose (_ : quotation_of B).
+    pose (_ : quotation_of s).
     pose (_ : quotation_of t2).
-    pose (_ : quotation_of e1).
-    pose (_ : quotation_of c1).
-    pose (_ : quotation_of a).
-    assert (quotation_of a0).
+    pose (_ : quotation_of t3).
+    Print cumul_gen.
+    Set Printing All.
+    pose (_ : quotation_of c).
+    Print primitive_invariants.
+    pose (_ : quotation_of p0).
+    pose (_ : quotation_of a1).
     { apply @quote_All2i; try exact _.
-
+      clear.
+      repeat match goal with H : _ |- _ => revert H end.
+        lazymatch goal with
+        | [ |- @quotation_of (forall x : ?T, ?P) (fun y : ?T => ?f) ]
+          => cut (forall (y : T), @quotation_of T y -> @quotation_of match y with x => P end f)
+        end.
+        let qf := fresh "qf" in
+        intro qf.
+        specialize
+        Locate subst.
+        Search "close".
+        let f := fresh "f" in
+        intros qf f.
+        intros qf.
       clear.
       clear.
       2: intros; cbv zeta beta; try exact _.

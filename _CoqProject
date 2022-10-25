@@ -4,5 +4,7 @@ theories/Lob.v
 theories/PCUIC/QuoteGround.v
 theories/QuoteGround.v
 theories/Template/QuoteGround.v
+theories/Template/TermUtils.v
+theories/Util/Lists/Definitions.v
 theories/Util/Tactics/BreakMatch.v
 theories/Util/Tactics/Head.v
