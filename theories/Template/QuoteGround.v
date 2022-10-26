@@ -1,7 +1,9 @@
 From Coq Require Import MSetInterface MSetList MSetAVL MSetFacts MSetProperties MSetDecide.
 Require Import Coq.Bool.Bool.
 From MetaCoq.Lob Require Import TermUtils.
-From MetaCoq.Lob.Util.Tactics Require Import BreakMatch.
+From MetaCoq.Lob.Util.Tactics Require Import
+     BreakMatch
+     DestructHead.
 From MetaCoq.Template Require Import MonadBasicAst MonadAst utils All.
 Require Import Coq.Lists.List.
 Import ListNotations.
@@ -136,6 +138,7 @@ Ltac quote_true_ground_goal _ :=
 
 #[export] Instance quote_nat : ground_quotable nat := (ltac:(induction 1; exact _)).
 #[export] Instance quote_True : ground_quotable True := (ltac:(destruct 1; exact _)).
+#[export] Instance quote_unit : ground_quotable unit := (ltac:(destruct 1; exact _)).
 #[export] Instance quote_False : ground_quotable False := (ltac:(destruct 1; exact _)).
 #[export] Instance quote_comparison : ground_quotable comparison := (ltac:(induction 1; exact _)).
 #[export] Instance quote_positive : ground_quotable positive := (ltac:(induction 1; exact _)).
@@ -148,7 +151,8 @@ Ltac quote_true_ground_goal _ :=
 #[export] Instance quote_prod {A B} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (A × B) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_sigT {A P} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} : ground_quotable (@sigT A P) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_and {A B : Prop} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (A /\ B) := (ltac:(destruct 1; exact _)).
-#[export] Instance quote_and3 {A B C : Prop} {qA : quotation_of A} {qB : quotation_of B} {qC : quotation_of C} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteC : ground_quotable C} : ground_quotable (ssrbool.and3 A B C) := (ltac:(destruct 1; exact _)).
+#[export] Instance quote_ssrbool_and3 {A B C : Prop} {qA : quotation_of A} {qB : quotation_of B} {qC : quotation_of C} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteC : ground_quotable C} : ground_quotable (ssrbool.and3 A B C) := (ltac:(destruct 1; exact _)).
+#[export] Instance quote_and4 {A B C D} {qA : quotation_of A} {qB : quotation_of B} {qC : quotation_of C} {qD : quotation_of D} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteC : ground_quotable C} {quoteD : ground_quotable D} : ground_quotable (and4 A B C D) := (ltac:(destruct 1; exact _)).
 #[export] Instance quote_is_true_or_l {b} {P : Prop} {qP : quotation_of P} {quoteP : ground_quotable P} : ground_quotable (is_true b \/ P).
 Proof.
   destruct b; intro H; [ | assert (H' : P) by now destruct H ].
@@ -209,6 +213,7 @@ Proof.
     try exact _.
 Defined.
 #[export] Instance quote_All2i {A B R n lsA lsB} {qA : quotation_of A} {qB : quotation_of B} {qR : quotation_of R} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteR : forall n x y, ground_quotable (R n x y)} : ground_quotable (@All2i A B R n lsA lsB) := ltac:(induction 1; exact _).
+#[export] Instance quote_Alli {A P n ls} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall n x, ground_quotable (P n x)} : ground_quotable (@Alli A P n ls) := ltac:(induction 1; exact _).
 #[export] Instance quote_OnOne2 {A R lsA lsB} {qA : quotation_of A} {qR : quotation_of R} {quoteA : ground_quotable A} {quoteR : forall x y, ground_quotable (R x y)} : ground_quotable (@OnOne2 A R lsA lsB) := ltac:(induction 1; exact _).
 #[export] Instance quote_OnOne2All {A B P lsB lsA1 lsA2} {qA : quotation_of A} {qB : quotation_of B} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteP : forall b x y, ground_quotable (P b x y)} : ground_quotable (@OnOne2All A B P lsB lsA1 lsA2) := ltac:(induction 1; exact _).
 
@@ -347,6 +352,9 @@ Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeT T).
   Proof.
     cbv [M.In]; apply Raw_In_dec.
   Defined.
+  Definition Inb x y := b_of_dec (In_dec x y).
+  Definition Inb_bp x y : Inb x y = true -> M.In x y := bp_of_dec.
+  Definition Inb_pb x y : M.In x y -> Inb x y = true := pb_of_dec.
 
   Section with_t.
     Context {quote_T_t : ground_quotable T.t}.
@@ -417,6 +425,48 @@ Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeT T).
       := ground_quotable_of_bp (@M_Raw_bstb_bst t) (@M_Raw_bstb_bst_alt t).
     #[export] Instance quote_Raw_Ok s : ground_quotable (M.Raw.Ok s) := (ltac:(cbv [M.Raw.Ok]; exact _)).
     #[export] Instance quote_t : ground_quotable M.t := (ltac:(induction 1; exact _)).
+
+    #[export] Instance quote_In x y : ground_quotable (M.In x y)
+      := ground_quotable_of_bp (@Inb_bp x y) (@Inb_pb x y).
+
+    Definition Raw_For_all_alt (P : M.elt -> Prop) : M.Raw.t -> Prop
+      := fix Raw_For_all_alt (s : M.Raw.t) : Prop
+        := match s with
+           | M.Raw.Leaf => True
+           | M.Raw.Node z l n r => Raw_For_all_alt l /\ P n /\ Raw_For_all_alt r
+           end.
+    Definition For_all_alt (P : M.elt -> Prop) (s : M.t) : Prop
+      := Raw_For_all_alt P (M.this s).
+    #[local] Hint Constructors M.Raw.InT : core typeclass_instances.
+    #[local] Hint Extern 1 (T.eq _ _) => reflexivity : core.
+    Lemma For_all_alt_iff P {P_Proper : Proper (T.eq ==> Basics.impl) P} s
+      : M.For_all P s <-> For_all_alt P s.
+    Proof using Type.
+      cbv [For_all_alt M.For_all M.In M.Raw.In M.this]; destruct s as [s _].
+      split; induction s; cbn; intro H'; auto; try inversion 1; subst; repeat apply conj; destruct_head'_and.
+      all: (idtac + (eapply P_Proper; (idtac + symmetry))); now eauto.
+    Defined.
+    Definition For_all_alt1 {P} {P_Proper : Proper (T.eq ==> Basics.impl) P} {s}
+      : M.For_all P s -> For_all_alt P s.
+    Proof. apply For_all_alt_iff; assumption. Defined.
+    Definition For_all_alt2 {P} {P_Proper : Proper (T.eq ==> Basics.impl) P} {s}
+      : For_all_alt P s -> M.For_all P s.
+    Proof. apply For_all_alt_iff; assumption. Defined.
+    #[export] Instance quote_For_all_alt {P s} {quote_P : forall x, M.In x s -> ground_quotable (P x:Prop)} {qP : quotation_of P} : ground_quotable (For_all_alt P s).
+    Proof.
+      cbv [For_all_alt M.For_all M.In M.Raw.In M.this] in *; destruct s as [s _].
+      induction s; cbn [Raw_For_all_alt]; try exact _.
+      apply @quote_and; try exact _.
+      2: apply @quote_and; try exact _.
+      all: eauto.
+    Defined.
+    #[export] Instance quote_For_all {P s} {quote_P : forall x, M.In x s -> ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (T.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} : ground_quotable (M.For_all P s).
+    Proof.
+      intro pf.
+      let f := match goal with |- ?f _ => f end in
+      change (f (For_all_alt2 (For_all_alt1 pf))).
+      exact _.
+    Defined.
   End with_t.
 End QuoteMSetAVL.
 
@@ -438,12 +488,17 @@ Module QuoteMSetListWithLeibniz (T : OrderedTypeWithLeibniz) (M : MSetList_MakeW
   Defined.
 End QuoteMSetListWithLeibniz.
 
+#[export] Instance quote_ConstraintType_t : ground_quotable ConstraintType.t := ltac:(destruct 1; exact _).
+
 Module QuoteLevelSet := QuoteMSetAVL Level LevelSet.
 #[export] Instance quote_LevelSet_t : ground_quotable LevelSet.t := QuoteLevelSet.quote_t.
+#[export] Instance quote_LevelSet_In {x y} : ground_quotable (LevelSet.In x y) := QuoteLevelSet.quote_In x y.
+#[export] Existing Instance QuoteLevelSet.quote_For_all.
 Module QuoteConstraintSet := QuoteMSetAVL UnivConstraint ConstraintSet.
-Module QuoteLevelExprSet := QuoteMSetListWithLeibniz LevelExpr LevelExprSet.
-#[export] Instance quote_ConstraintType_t : ground_quotable ConstraintType.t := ltac:(destruct 1; exact _).
 #[export] Instance quote_ConstraintSet_t : ground_quotable ConstraintSet.t := QuoteConstraintSet.quote_t.
+#[export] Instance quote_ConstraintSet_In {x y} : ground_quotable (ConstraintSet.In x y) := QuoteConstraintSet.quote_In x y.
+#[export] Existing Instance QuoteConstraintSet.quote_For_all.
+Module QuoteLevelExprSet := QuoteMSetListWithLeibniz LevelExpr LevelExprSet.
 #[export] Instance quote_ContextSet_t : ground_quotable ContextSet.t := (ltac:(induction 1; exact _)).
 #[export] Instance quote_Retroknowledge_t : ground_quotable Environment.Retroknowledge.t := (ltac:(induction 1; exact _)).
 #[export] Instance quote_universes_decl : ground_quotable universes_decl := (ltac:(induction 1; exact _)).
@@ -484,6 +539,17 @@ Definition wf_universe_bp Σ s : wf_universeb Σ s = true -> wf_universe Σ s :=
 Definition wf_universe_pb Σ s : wf_universe Σ s -> wf_universeb Σ s = true := pb_of_dec.
 
 #[export] Instance quote_wf_universe {Σ s} : ground_quotable (@wf_universe Σ s) := ground_quotable_of_bp (@wf_universe_bp Σ s) (@wf_universe_pb Σ s).
+
+Definition consistent_dec ctrs : {@consistent ctrs} + {~@consistent ctrs}.
+Proof.
+  destruct (@gc_consistent_iff config.default_checker_flags ctrs) as [f1 f2].
+  cbv [on_Some] in *; destruct @gc_of_constraints.
+Admitted.
+Definition consistent_b ctrs : bool := b_of_dec (@consistent_dec ctrs).
+Definition consistent_bp ctrs : @consistent_b ctrs = true -> @consistent ctrs := bp_of_dec.
+Definition consistent_pb ctrs : @consistent ctrs -> @consistent_b ctrs = true := pb_of_dec.
+#[export] Instance quote_consistent {ctrs} : ground_quotable (@consistent ctrs)
+  := ground_quotable_of_bp (@consistent_bp ctrs) (@consistent_pb ctrs).
 
 Definition valid_constraints_dec cf ϕ cstrs : {@valid_constraints cf ϕ cstrs} + {~@valid_constraints cf ϕ cstrs}.
 Proof.
@@ -538,7 +604,7 @@ Definition leq_levelalg_n_pb cf n ϕ u u' : @leq_levelalg_n cf n ϕ u u' -> @leq
 #[export] Instance quote_is_lSet {cf ϕ s} : ground_quotable (@is_lSet cf ϕ s) := _.
 #[export] Instance quote_is_allowed_elimination {cf ϕ allowed u} : ground_quotable (@is_allowed_elimination cf ϕ allowed u) := ltac:(destruct allowed; exact _).
 #[export] Instance quote_conv_pb : ground_quotable conv_pb := ltac:(destruct 1; exact _).
-Print compare_universe.
+
 #[export] Instance quote_compare_universe {cf pb ϕ s s'} : ground_quotable (@compare_universe cf pb ϕ s s') := ltac:(destruct pb; exact _).
 
 Module Import TermEquality.
@@ -565,6 +631,8 @@ Proof.
 Defined.
 
 #[export] Instance quote_cumul_gen {H Σ Γ pb t u} : ground_quotable (@cumul_gen H Σ Γ pb t u) := ltac:(induction 1; exact _).
+Print declared_cstr_levels.
+#[export] Instance quote_declared_cstr_levels {levels c} : ground_quotable (@declared_cstr_levels levels c) := ltac:(cbv [declared_cstr_levels]; exact _).
 
 Module Import Typing.
   #[export] Instance quote_ctx_inst {Σ Γ} {typing} {qtyping : quotation_of typing} {quote_typing : forall t T, ground_quotable (typing Σ Γ t T)} {inst Δ} : ground_quotable (@ctx_inst typing Σ Γ inst Δ) := (ltac:(induction 1; exact _)).
@@ -596,5 +664,76 @@ Module Import Typing.
   Defined.
 
   #[export] Instance quote_typing {H Σ Γ t1 t2} : ground_quotable (@typing H Σ Γ t1 t2) := quote_typing'.
+  #[export] Instance quote_typing_spine {H Σ Γ t1 s t2} : ground_quotable (@typing_spine H Σ Γ t1 s t2) := quote_typing_spine'.
+
+  #[export] Instance quote_on_global_univs {c} : ground_quotable (@on_global_univs c).
+  Proof.
+    cbv [on_global_univs]; try exact _.
+    apply @quote_and; try exact _.
+    eapply @QuoteConstraintSet.quote_For_all; try exact _.
+  Defined.
+  #[export] Instance quote_on_constant_decl {P Σ d} {quote_P : forall trm, cst_body d = Some trm -> ground_quotable (P Σ [] trm (Typ (cst_type d)))} {quote_P' : cst_body d = None -> ground_quotable (P Σ [] (cst_type d) Sort)} : ground_quotable (@on_constant_decl P Σ d).
+  Proof.
+    cbv [on_constant_decl].
+    destruct (cst_body d); exact _.
+  Defined.
+  #[export] Instance quote_on_variance {cf Σ univs variances} : ground_quotable (@on_variance cf Σ univs variances) := ltac:(cbv [on_variance]; exact _).
+  #[export] Instance quote_on_context {P Σ ctx} {qP : quotation_of P} {quote_P : forall Γ t T, ground_quotable (P Σ Γ t T)} : ground_quotable (@on_context P Σ ctx) := _.
+  #[export] Instance quote_on_ind_body {cf Pcmp P Σ mind mdecl i idecl} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} : ground_quotable (@on_ind_body cf Pcmp P Σ mind mdecl i idecl).
+  Proof.
+    destruct 1; try exact _.
+    repeat match goal with
+           | [ H : quotation_of ?x |- _ ] => revert x H
+           | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
+           end.
+  #[export] Instance quote_on_inductive {cf Pcmp P Σ mind mdecl} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} {quote_P : forall Γ t T, ground_quotable (P Σ Γ t T)} : ground_quotable (@on_inductive cf Pcmp P Σ mind mdecl).
+  Proof.
+    destruct 1; try exact _.
+    repeat match goal with
+           | [ H : quotation_of ?x |- _ ] => revert x H
+           | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
+           end.
+    assert (quotation_of onInductives).
+    { apply @quote_Alli.
+      all: try exact _.
+    cbv [on_inductive]; try exact _.
+  #[export] Instance quote_on_global_decl {cf Pcmp P Σ kn decl} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} : ground_quotable (@on_global_decl cf Pcmp P Σ kn decl).
+  Proof.
+    cbv [on_global_decl]; try exact _.
+    destruct decl; try exact _.
+    repeat match goal with
+           | [ H : quotation_of ?x |- _ ] => revert x H
+           | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
+           end.
+  #[export] Instance quote_on_global_decls_data {cf Pcmp P univs retro Σ kn d} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} : ground_quotable (@on_global_decls_data cf Pcmp P univs retro Σ kn d).
+  Proof.
+    destruct 1; try exact _.
+    repeat match goal with
+           | [ H : quotation_of ?x |- _ ] => revert x H
+           | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
+           end.
+
+  Print on_global_decls.
+  #[export] Instance quote_on_global_decls {cf Pcmp P univs retro decls} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} : ground_quotable (@on_global_decls cf Pcmp P univs retro decls).
+  Proof.
+    induction 1; try exact _.
+    repeat match goal with
+           | [ H : quotation_of ?x |- _ ] => revert x H
+           | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
+           end.
+
+    pose (_ : quotation_of ).
+    cbv [on_global_univs]; try exact _.
+    apply @quote_and; try exact _.
+    eapply @QuoteConstraintSet.quote_For_all; try exact _.
+  Defined.
+  Print on_global_env.
+  #[export] Instance quote_on_global_env {cf Pcmp P g} : ground_quotable (@wf H Σ).
+  cbv [wf].
+
+  #[export] Instance quote_wf {H Σ} : ground_quotable (@wf H Σ).
+  cbv [wf].
+  Locate on_global_env.
+    := _.
   #[export] Instance quote_typing_spine {H Σ Γ t1 s t2} : ground_quotable (@typing_spine H Σ Γ t1 s t2) := quote_typing_spine'.
 End Typing.
