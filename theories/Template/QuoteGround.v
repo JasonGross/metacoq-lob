@@ -242,6 +242,7 @@ Defined.
 #[export] Instance quote_Alli {A P n ls} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall n x, ground_quotable (P n x)} : ground_quotable (@Alli A P n ls) := ltac:(induction 1; exact _).
 #[export] Instance quote_OnOne2 {A R lsA lsB} {qA : quotation_of A} {qR : quotation_of R} {quoteA : ground_quotable A} {quoteR : forall x y, ground_quotable (R x y)} : ground_quotable (@OnOne2 A R lsA lsB) := ltac:(induction 1; exact _).
 #[export] Instance quote_OnOne2All {A B P lsB lsA1 lsA2} {qA : quotation_of A} {qB : quotation_of B} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteP : forall b x y, ground_quotable (P b x y)} : ground_quotable (@OnOne2All A B P lsB lsA1 lsA2) := ltac:(induction 1; exact _).
+#[export] Instance quote_All2_fold {A P ls1 ls2} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall x y z w, ground_quotable (P x y z w)} : ground_quotable (@All2_fold A P ls1 ls2) := ltac:(induction 1; exact _).
 
 #[export] Instance quote_LevelExprSet_Raw_Ok s : ground_quotable (LevelExprSet.Raw.Ok s) := (ltac:(cbv [LevelExprSet.Raw.Ok]; exact _)).
 #[export] Instance quote_LevelExprSet_t : ground_quotable LevelExprSet.t := (ltac:(induction 1; exact _)).
@@ -657,8 +658,12 @@ Proof.
 Defined.
 
 #[export] Instance quote_cumul_gen {H Σ Γ pb t u} : ground_quotable (@cumul_gen H Σ Γ pb t u) := ltac:(induction 1; exact _).
-Print declared_cstr_levels.
 #[export] Instance quote_declared_cstr_levels {levels c} : ground_quotable (@declared_cstr_levels levels c) := ltac:(cbv [declared_cstr_levels]; exact _).
+
+Module Import TemplateConversion.
+  #[export] Instance quote_cumul_ctx_rel {cumul_gen Σ Γ Δ Δ'} : ground_quotable (@TemplateConversion.cumul_ctx_rel cumul_gen Σ Γ Δ Δ').
+  cbv [TemplateConversion.cumul_ctx_rel].
+  apply @quote_All2_fold; try exact _.
 
 Module Import Typing.
   #[export] Instance quote_ctx_inst {Σ Γ} {typing} {qtyping : quotation_of typing} {quote_typing : forall t T, ground_quotable (typing Σ Γ t T)} {inst Δ} : ground_quotable (@ctx_inst typing Σ Γ inst Δ) := (ltac:(induction 1; exact _)).
@@ -700,6 +705,17 @@ Module Import Typing.
   Defined.
   #[export] Instance quote_on_variance {cf Σ univs variances} : ground_quotable (@on_variance cf Σ univs variances) := ltac:(cbv [on_variance]; exact _).
   #[export] Instance quote_on_context {P Σ ctx} {qP : quotation_of P} {quote_P : forall Γ t T, ground_quotable (P Σ Γ t T)} : ground_quotable (@on_context P Σ ctx) := _.
+    Print ind_respects_variance.
+  #[export] Instance quote_ind_respects_variance {Pcmp Σ mdecl v indices} (*{qPcmp : quotation_of Pcmp} {qP : quotation_of P}*) : ground_quotable (@ind_respects_variance Pcmp Σ mdecl v indices).
+  Proof.
+    cbv [ind_respects_variance]; destruct variance_universes; try exact _.
+    break_innermost_match; try exact _.
+    Print TemplateConversion.cumul_ctx_rel.
+    destruct 1; try exact _.
+    repeat match goal with
+           | [ H : quotation_of ?x |- _ ] => revert x H
+           | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
+           end.
   #[export] Instance quote_on_ind_body {cf Pcmp P Σ mind mdecl i idecl} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} : ground_quotable (@on_ind_body cf Pcmp P Σ mind mdecl i idecl).
   Proof.
     destruct 1; try exact _.
@@ -707,6 +723,7 @@ Module Import Typing.
            | [ H : quotation_of ?x |- _ ] => revert x H
            | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
            end.
+    Print ind_respects_variance.
     Locate on_ind_body.
   #[export] Instance quote_on_inductive {cf Pcmp P Σ mind mdecl} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} {quote_P : forall Γ t T, ground_quotable (P Σ Γ t T)} : ground_quotable (@on_inductive cf Pcmp P Σ mind mdecl).
   Proof.
