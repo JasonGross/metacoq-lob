@@ -521,6 +521,11 @@ Definition eq_levelalg_pb cf ϕ u u' : @eq_levelalg cf ϕ u u' -> @eq_levelalg_b
 #[export] Instance quote_is_allowed_elimination {cf ϕ allowed u} : ground_quotable (@is_allowed_elimination cf ϕ allowed u) := ltac:(destruct allowed; exact _).
 #[export] Instance quote_conv_pb : ground_quotable conv_pb := ltac:(destruct 1; exact _).
 Module Import TermEquality.
+  #[export] Instance quote_R_universe_variance {Re Rle v u u'} {qRe : quotation_of Re} {qRle : quotation_of Rle} {quote_Re : forall x y, ground_quotable (Re x y:Prop)} {quote_Rle : forall x y, ground_quotable (Rle x y:Prop)} : ground_quotable (@TermEquality.R_universe_variance Re Rle v u u') := ltac:(cbv [TermEquality.R_universe_variance]; exact _).
+  #[export] Instance quote_R_universe_instance_variance {Re Rle v u u'} {qRe : quotation_of Re} {qRle : quotation_of Rle} {quote_Re : forall x y, ground_quotable (Re x y:Prop)} {quote_Rle : forall x y, ground_quotable (Rle x y:Prop)} : ground_quotable (@TermEquality.R_universe_instance_variance Re Rle v u u')
+    := ltac:(revert u' v; induction u, u', v; cbn [TermEquality.R_universe_instance_variance]; exact _).
+  #[export] Instance quote_R_opt_variance {Re Rle v l1 l2} {qRe : quotation_of Re} {qRle : quotation_of Rle} {quote_Re : forall x y, ground_quotable (Re x y:Prop)} {quote_Rle : forall x y, ground_quotable (Rle x y:Prop)} : ground_quotable (@TermEquality.R_opt_variance Re Rle v l1 l2).
+  Print TermEquality.R_universe_instance_variance.
   #[export] Instance quote_eq_term_upto_univ_napp {H Re Rle napp t u} {qRe : quotation_of Re} {qRle : quotation_of Rle} {quote_Re : forall x y, ground_quotable (Re x y:Prop)} {quote_Rle : forall x y, ground_quotable (Rle x y:Prop)} : ground_quotable (@TermEquality.eq_term_upto_univ_napp H Re Rle napp t u).
   Proof.
     intro v; revert v.
@@ -536,6 +541,7 @@ Module Import TermEquality.
     exact _.
     Print TermEquality.R_global_instance.
     Print TermEquality.R_opt_variance.
+    Print TermEquality.R_universe_instance.
 
     Print T
     Guarded.
