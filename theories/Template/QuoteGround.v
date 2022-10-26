@@ -120,10 +120,14 @@ Ltac make_quotation_of_goal _ :=
 #[export]
  Hint Extern 1 (ground_quotable match ?t with _ => _ end) => is_var t; destruct t : typeclass_instances.
 
+Ltac replace_quotation_of_goal _ :=
+  let G := match goal with |- quotation_of ?G => G end in
+  tryif is_var G
+  then fail "Avoiding loops"
+  else run_template_program (replace_quotation_of <% G %>) (fun v => exact v).
+
 #[export]
- Hint Extern 1 (quotation_of (fun x => @?f x))
-=> run_template_program (replace_quotation_of <% f %>) (fun v => exact v)
-  : typeclass_instances.
+ Hint Extern 1 (quotation_of _) => replace_quotation_of_goal () : typeclass_instances.
 
 Ltac quote_true_ground_goal _ :=
   lazymatch goal with
@@ -153,6 +157,28 @@ Ltac quote_true_ground_goal _ :=
 #[export] Instance quote_and {A B : Prop} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (A /\ B) := (ltac:(destruct 1; exact _)).
 #[export] Instance quote_ssrbool_and3 {A B C : Prop} {qA : quotation_of A} {qB : quotation_of B} {qC : quotation_of C} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteC : ground_quotable C} : ground_quotable (ssrbool.and3 A B C) := (ltac:(destruct 1; exact _)).
 #[export] Instance quote_and4 {A B C D} {qA : quotation_of A} {qB : quotation_of B} {qC : quotation_of C} {qD : quotation_of D} {quoteA : ground_quotable A} {quoteB : ground_quotable B} {quoteC : ground_quotable C} {quoteD : ground_quotable D} : ground_quotable (and4 A B C D) := (ltac:(destruct 1; exact _)).
+(* XXX MOVE ME *)
+(** Transparent version of [proj1], [proj2] *)
+Definition proj1 {A B} (x : A /\ B) : A := let (a, b) := x in a.
+Definition proj2 {A B} (x : A /\ B) : B := let (a, b) := x in b.
+Definition quote_of_iff {A B : Prop} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : A <-> B) {qH : quotation_of H} : ground_quotable B.
+Proof.
+  intro b.
+  change (@quotation_of B (proj1 H (proj2 H b))).
+  exact _.
+Defined.
+Lemma iff_forall_eq_some {A v P} : match v with Some v => P v | None => True end <-> (forall a : A, v = Some a -> P a).
+Proof.
+  split; destruct v; auto; intros ??; inversion 1; subst; assumption.
+Defined.
+Lemma iff_forall_neq_nil {A} {v : list A} {P} : match v with nil => True | _ => P end <-> (v <> nil -> P).
+Proof.
+  split; destruct v; intuition congruence.
+Defined.
+#[export] Instance quote_forall_eq_some {A v P} {q : ground_quotable (match v return Prop with Some v => P v | None => True end)} {qv : quotation_of v} {qA : quotation_of A} {qP : quotation_of P} : ground_quotable (forall a : A, v = Some a -> P a)
+  := quote_of_iff iff_forall_eq_some.
+#[export] Instance quote_forall_neq_nil {A v P} {q : ground_quotable (match v return Prop with nil => True | _ => P end)} {qv : quotation_of v} {qA : quotation_of A} {qP : quotation_of P} : ground_quotable (v <> @nil A -> P)
+  := quote_of_iff iff_forall_neq_nil.
 #[export] Instance quote_is_true_or_l {b} {P : Prop} {qP : quotation_of P} {quoteP : ground_quotable P} : ground_quotable (is_true b \/ P).
 Proof.
   destruct b; intro H; [ | assert (H' : P) by now destruct H ].
@@ -666,12 +692,7 @@ Module Import Typing.
   #[export] Instance quote_typing {H Σ Γ t1 t2} : ground_quotable (@typing H Σ Γ t1 t2) := quote_typing'.
   #[export] Instance quote_typing_spine {H Σ Γ t1 s t2} : ground_quotable (@typing_spine H Σ Γ t1 s t2) := quote_typing_spine'.
 
-  #[export] Instance quote_on_global_univs {c} : ground_quotable (@on_global_univs c).
-  Proof.
-    cbv [on_global_univs]; try exact _.
-    apply @quote_and; try exact _.
-    eapply @QuoteConstraintSet.quote_For_all; try exact _.
-  Defined.
+  #[export] Instance quote_on_global_univs {c} : ground_quotable (@on_global_univs c) := _.
   #[export] Instance quote_on_constant_decl {P Σ d} {quote_P : forall trm, cst_body d = Some trm -> ground_quotable (P Σ [] trm (Typ (cst_type d)))} {quote_P' : cst_body d = None -> ground_quotable (P Σ [] (cst_type d) Sort)} : ground_quotable (@on_constant_decl P Σ d).
   Proof.
     cbv [on_constant_decl].
@@ -686,6 +707,7 @@ Module Import Typing.
            | [ H : quotation_of ?x |- _ ] => revert x H
            | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
            end.
+    Locate on_ind_body.
   #[export] Instance quote_on_inductive {cf Pcmp P Σ mind mdecl} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} {quote_P : forall Γ t T, ground_quotable (P Σ Γ t T)} : ground_quotable (@on_inductive cf Pcmp P Σ mind mdecl).
   Proof.
     destruct 1; try exact _.
