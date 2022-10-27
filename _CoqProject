@@ -6,10 +6,14 @@ theories/QuoteGround.v
 theories/Template/QuoteGround.v
 theories/Template/QuoteGround/Coq/Init.v
 theories/Template/QuoteGround/Coq/Lists.v
+theories/Template/QuoteGround/Coq/MSets.v
 theories/Template/QuoteGround/Coq/Misc.v
 theories/Template/QuoteGround/Coq/Numbers.v
 theories/Template/QuoteGround/Coq/Strings.v
+theories/Template/QuoteGround/Coq/ssr.v
 theories/Template/QuoteGround/Init.v
+theories/Template/QuoteGround/utils/MCPrelude.v
+theories/Template/QuoteGround/utils/MCReflect.v
 theories/Template/QuoteGroundTyping.v
 theories/Template/TermUtils.v
 theories/Util/Lists/Definitions.v
