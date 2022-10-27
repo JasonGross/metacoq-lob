@@ -161,24 +161,32 @@ Ltac quote_true_ground_goal _ :=
 (** Transparent version of [proj1], [proj2] *)
 Definition proj1 {A B} (x : A /\ B) : A := let (a, b) := x in a.
 Definition proj2 {A B} (x : A /\ B) : B := let (a, b) := x in b.
+(* TODO: Move *)
+Local Notation iffT A B := ((A -> B) × (B -> A)).
 Definition quote_of_iff {A B : Prop} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : A <-> B) {qH : quotation_of H} : ground_quotable B.
 Proof.
   intro b.
   change (@quotation_of B (proj1 H (proj2 H b))).
   exact _.
 Defined.
-Lemma iff_forall_eq_some {A v P} : match v with Some v => P v | None => True end <-> (forall a : A, v = Some a -> P a).
+Definition quote_of_iffT {A B} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : iffT A B) {qH : quotation_of H} : ground_quotable B.
+Proof.
+  intro b.
+  change (@quotation_of B (fst H (snd H b))).
+  exact _.
+Defined.
+Lemma iff_forall_eq_some {A v P} : iffT match v return Type with Some v => P v | None => True end (forall a : A, v = Some a -> P a).
 Proof.
   split; destruct v; auto; intros ??; inversion 1; subst; assumption.
 Defined.
-Lemma iff_forall_neq_nil {A} {v : list A} {P} : match v with nil => True | _ => P end <-> (v <> nil -> P).
+Lemma iff_forall_neq_nil {A} {v : list A} {P} : iffT match v return Type with nil => True | _ => P end (v <> nil -> P).
 Proof.
   split; destruct v; intuition congruence.
 Defined.
-#[export] Instance quote_forall_eq_some {A v P} {q : ground_quotable (match v return Prop with Some v => P v | None => True end)} {qv : quotation_of v} {qA : quotation_of A} {qP : quotation_of P} : ground_quotable (forall a : A, v = Some a -> P a)
-  := quote_of_iff iff_forall_eq_some.
-#[export] Instance quote_forall_neq_nil {A v P} {q : ground_quotable (match v return Prop with nil => True | _ => P end)} {qv : quotation_of v} {qA : quotation_of A} {qP : quotation_of P} : ground_quotable (v <> @nil A -> P)
-  := quote_of_iff iff_forall_neq_nil.
+#[export] Instance quote_forall_eq_some {A v P} {q : ground_quotable (match v return Type with Some v => P v | None => True end)} {qv : quotation_of v} {qA : quotation_of A} {qP : quotation_of P} : ground_quotable (forall a : A, v = Some a -> P a)
+  := quote_of_iffT iff_forall_eq_some.
+#[export] Instance quote_forall_neq_nil {A v P} {q : ground_quotable (match v return Type with nil => True | _ => P end)} {qv : quotation_of v} {qA : quotation_of A} {qP : quotation_of P} : ground_quotable (v <> @nil A -> P)
+  := quote_of_iffT iff_forall_neq_nil.
 #[export] Instance quote_is_true_or_l {b} {P : Prop} {qP : quotation_of P} {quoteP : ground_quotable P} : ground_quotable (is_true b \/ P).
 Proof.
   destruct b; intro H; [ | assert (H' : P) by now destruct H ].
@@ -661,9 +669,9 @@ Defined.
 #[export] Instance quote_declared_cstr_levels {levels c} : ground_quotable (@declared_cstr_levels levels c) := ltac:(cbv [declared_cstr_levels]; exact _).
 
 Module Import TemplateConversion.
-  #[export] Instance quote_cumul_ctx_rel {cumul_gen Σ Γ Δ Δ'} : ground_quotable (@TemplateConversion.cumul_ctx_rel cumul_gen Σ Γ Δ Δ').
-  cbv [TemplateConversion.cumul_ctx_rel].
-  apply @quote_All2_fold; try exact _.
+  #[export] Instance quote_All_decls_alpha_pb {pb P d d'} {qP : quotation_of P} {quoteP : forall t t', ground_quotable (P pb t t')} {quotePc : forall t t', ground_quotable (P Conv t t')} : ground_quotable (@TemplateConversion.All_decls_alpha_pb pb P d d') := ltac:(induction 1; exact _).
+  #[export] Instance quote_cumul_ctx_rel {cumul_gen Σ Γ Δ Δ'} {qcumul_gen : quotation_of cumul_gen} {quote_cumul_gen : forall x pb t t', ground_quotable (cumul_gen Σ (app_context Γ x) pb t t')} : ground_quotable (@TemplateConversion.cumul_ctx_rel cumul_gen Σ Γ Δ Δ') := _.
+End TemplateConversion.
 
 Module Import Typing.
   #[export] Instance quote_ctx_inst {Σ Γ} {typing} {qtyping : quotation_of typing} {quote_typing : forall t T, ground_quotable (typing Σ Γ t T)} {inst Δ} : ground_quotable (@ctx_inst typing Σ Γ inst Δ) := (ltac:(induction 1; exact _)).
@@ -705,24 +713,36 @@ Module Import Typing.
   Defined.
   #[export] Instance quote_on_variance {cf Σ univs variances} : ground_quotable (@on_variance cf Σ univs variances) := ltac:(cbv [on_variance]; exact _).
   #[export] Instance quote_on_context {P Σ ctx} {qP : quotation_of P} {quote_P : forall Γ t T, ground_quotable (P Σ Γ t T)} : ground_quotable (@on_context P Σ ctx) := _.
-    Print ind_respects_variance.
-  #[export] Instance quote_ind_respects_variance {Pcmp Σ mdecl v indices} (*{qPcmp : quotation_of Pcmp} {qP : quotation_of P}*) : ground_quotable (@ind_respects_variance Pcmp Σ mdecl v indices).
+  #[local]
+   Hint Extern 1 (ground_quotable match ?t with _ => _ end) => destruct t : typeclass_instances.
+  Print on_constructor.
+  #[export] Instance quote_on_constructor {cf Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs} : ground_quotable (@on_constructor cf Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs). destruct 1; try exact _.
+    repeat match goal with
+           | [ H : quotation_of ?x |- _ ] => revert x H
+           | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
+           end.
+  #[export] Instance quote_on_constructors {cf Pcmp P Σ mdecl idecl ind_indices} : ground_quotable (@on_constructors cf Pcmp P Σ mdecl idecl ind_indices) := ltac:(cbv [on_constructors]; exact _).
+  Print on_projections.
+  #[export] Instance quote_ind_respects_variance {Pcmp Σ mdecl v indices} {qPcmp : quotation_of Pcmp} {quote_Pcmp : forall u l0 Γ pb t t', ground_quotable (Pcmp (Σ, u) (app_context (subst_instance l0 (smash_context [] (ind_params mdecl))) Γ) pb t t')} : ground_quotable (@ind_respects_variance Pcmp Σ mdecl v indices) := ltac:(cbv [ind_respects_variance]; destruct variance_universes; exact _).
+  #[export] Instance quote_on_ind_body {cf Pcmp P Σ mind mdecl i idecl} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} {quote_Pcmp : forall u l0 Γ pb t t', ground_quotable (Pcmp (fst_ctx Σ, u) (app_context (subst_instance l0 (smash_context [] (ind_params mdecl))) Γ) pb t t')} : ground_quotable (@on_ind_body cf Pcmp P Σ mind mdecl i idecl).
   Proof.
-    cbv [ind_respects_variance]; destruct variance_universes; try exact _.
-    break_innermost_match; try exact _.
-    Print TemplateConversion.cumul_ctx_rel.
     destruct 1; try exact _.
     repeat match goal with
            | [ H : quotation_of ?x |- _ ] => revert x H
            | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
            end.
-  #[export] Instance quote_on_ind_body {cf Pcmp P Σ mind mdecl i idecl} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} : ground_quotable (@on_ind_body cf Pcmp P Σ mind mdecl i idecl).
-  Proof.
-    destruct 1; try exact _.
-    repeat match goal with
-           | [ H : quotation_of ?x |- _ ] => revert x H
-           | [ x : _ |- _ ] => generalize (_ : quotation_of x); revert x
-           end.
+    Print ch
+    assert (quotation_of onIndices).
+    apply @quote_ground.
+    apply @quote_forall_eq_some.
+    exact _.
+    { break_innermost_match; try exact _.
+      eapply @quote_ind_respects_variance; try exact _; intros.
+      Set Printing All.
+      assert ().
+    cbv [ground_quotable] in f.
+    Set Printing Implicit.
+    eapply f.
     Print ind_respects_variance.
     Locate on_ind_body.
   #[export] Instance quote_on_inductive {cf Pcmp P Σ mind mdecl} {qPcmp : quotation_of Pcmp} {qP : quotation_of P} {quote_P : forall Γ t T, ground_quotable (P Σ Γ t T)} : ground_quotable (@on_inductive cf Pcmp P Σ mind mdecl).
