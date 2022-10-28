@@ -1,15 +1,132 @@
 From Coq Require Import MSetInterface MSetList MSetAVL MSetFacts MSetProperties MSetDecide.
 From MetaCoq.Lob.Util.Tactics Require Import
      DestructHead.
-From MetaCoq.Lob.Template.QuoteGround Require Export Coq.Numbers Coq.Init.
+From MetaCoq.Lob.Template.QuoteGround Require Export Coq.Numbers Coq.Init Coq.Lists.
+
+Module QuoteWSetsOn (E : DecidableType) (Import W : WSetsOn E).
+  Module WFacts := WFactsOn E W.
+  Module WProperties := WPropertiesOn E W.
+  Module WDecide := WDecideOn E W.
+
+  #[export] Instance quote_In {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (In x y)
+    := ground_quotable_of_dec (WProperties.In_dec x y).
+  #[export] Instance quote_neg_In {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~In x y)
+    := ground_quotable_neg_of_dec (WProperties.In_dec x y).
+  #[export] Instance quote_Equal {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (Equal x y)
+    := ground_quotable_of_dec (eq_dec x y).
+  #[export] Instance quote_neg_Equal {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Equal x y)
+    := ground_quotable_neg_of_dec (eq_dec x y).
+  #[export] Instance quote_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (Subset x y) := quote_of_iff (@subset_spec x y).
+  Lemma subset_neg_spec s s' : subset s s' = false <-> ~Subset s s'.
+  Proof.
+    rewrite <- subset_spec; destruct subset; intuition congruence.
+  Qed.
+  #[export] Instance quote_neg_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Subset x y) := quote_of_iff (@subset_neg_spec x y).
+  #[export] Instance quote_Empty {x} {qx : quotation_of x} : ground_quotable (Empty x) := quote_of_iff (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x)).
+  Lemma empty_neg_spec x : ~x [=] empty <-> ~Empty x.
+  Proof.
+    rewrite <- (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x) : iff _ _).
+    reflexivity.
+  Qed.
+  #[export] Instance quote_neg_Empty {x} {qx : quotation_of x} : ground_quotable (~Empty x) := quote_of_iff (@empty_neg_spec x).
+  #[export] Instance quote_Add {x s s'} {qx : quotation_of x} {qs : quotation_of s} {qs' : quotation_of s'} : ground_quotable (WProperties.Add x s s')
+    := quote_of_iff (iff_sym (WProperties.Add_Equal _ _ _)).
+
+  Definition For_all_alt (P : elt -> Prop) (s : t) : Prop
+    := List.Forall P (elements s).
+  #[local] Hint Extern 1 (E.eq _ _) => reflexivity : core.
+  Lemma For_all_alt_iff {P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {s}
+    : For_all_alt P s <-> For_all P s.
+  Proof.
+    cbv [For_all_alt For_all].
+    setoid_rewrite WFacts.elements_iff.
+    induction (elements s) as [|x xs IH].
+    { split; solve [ constructor | inversion 2 ]. }
+    { setoid_rewrite Forall_cons_iff; setoid_rewrite InA_cons; setoid_rewrite IH.
+      intuition auto.
+      eapply P_Proper; (idtac + symmetry); eassumption. }
+  Defined.
+  #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} {qs : quotation_of s} : ground_quotable (For_all P s)
+    := quote_of_iff For_all_alt_iff.
+  Definition Exists_alt (P : elt -> Prop) (s : t) : Prop
+    := List.Exists P (elements s).
+  Lemma Exists_alt_iff {P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {s}
+    : Exists_alt P s <-> Exists P s.
+  Proof.
+    cbv [Exists_alt Exists].
+    setoid_rewrite WFacts.elements_iff.
+    induction (elements s) as [|x xs IH].
+    { split; try solve [ constructor | inversion 1 | intros [x [H H']]; inversion H ]. }
+    { setoid_rewrite Exists_cons; setoid_rewrite InA_cons; setoid_rewrite IH.
+      firstorder intuition auto. }
+  Defined.
+  Definition Exists_dec {P s} (P_dec : forall x, {P x} + {~P x}) {P_Proper : Proper (E.eq ==> Basics.impl) P} : {Exists P s} + {~Exists P s}.
+  Proof.
+    destruct (List.Exists_dec P (elements s) P_dec) as [H|H]; [ left | right ]; revert H.
+    { intro H; apply Exists_alt_iff, H. }
+    { intros H H'; apply H, Exists_alt_iff, H'. }
+  Defined.
+  Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} {qs : quotation_of s} : ground_quotable (Exists P s)
+    := ground_quotable_of_dec (Exists_dec P_dec).
+  Module Export Instances.
+    #[export] Existing Instances
+     quote_In
+     quote_Equal
+     quote_Subset
+     quote_Empty
+     quote_neg_In
+     quote_neg_Equal
+     quote_neg_Subset
+     quote_neg_Empty
+     quote_Add
+     quote_For_all
+    .
+  End Instances.
+End QuoteWSetsOn.
+
+Module QuoteSetsOn (E : OrderedType) (Import M : SetsOn E).
+  Include QuoteWSetsOn E M.
+  Module Import MOrdProperties. Module E := E. Include M <+ OrdProperties. End MOrdProperties.
+
+  Definition above x s : bool := for_all (fun y => if ME.lt_dec y x then true else false) s.
+  Definition below x s : bool := for_all (fun y => if ME.lt_dec x y then true else false) s.
+  Lemma above_spec x s : above x s = true <-> Above x s.
+  Proof.
+    cbv [Above above].
+    rewrite for_all_spec
+      by (intros ?? H; repeat (let H' := fresh in destruct ME.lt_dec as [H'|H']; rewrite ?H in H'); try reflexivity; tauto).
+    cbv [For_all].
+    split; intros H y H'; generalize (H y H'); destruct ME.lt_dec; try reflexivity; eauto; congruence.
+  Qed.
+  Lemma below_spec x s : below x s = true <-> Below x s.
+  Proof.
+    cbv [Below below].
+    rewrite for_all_spec
+      by (intros ?? H; repeat (let H' := fresh in destruct ME.lt_dec as [H'|H']; rewrite ?H in H'); try reflexivity; tauto).
+    cbv [For_all].
+    split; intros H y H'; generalize (H y H'); destruct ME.lt_dec; try reflexivity; eauto; congruence.
+  Qed.
+  #[export] Instance quote_Above {x s} {qx : quotation_of x} {qs : quotation_of s} : ground_quotable (Above x s)
+    := quote_of_iff (above_spec x s).
+  #[export] Instance quote_Below {x s} {qx : quotation_of x} {qs : quotation_of s} : ground_quotable (Below x s)
+    := quote_of_iff (below_spec x s).
+
+  Module Export OnlyOrdInstances.
+    #[export] Existing Instances
+     quote_Above
+     quote_Below
+    .
+  End OnlyOrdInstances.
+  Module Export OrdInstances.
+    Export Instances.
+    Export OnlyOrdInstances.
+  End OrdInstances.
+End QuoteSetsOn.
 
 Module Type MSetAVL_MakeT (T : OrderedType). Include MSetAVL.Make T. End MSetAVL_MakeT.
 
 Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeT T).
-  Module MFact := WFactsOn T M.
-  Module MProp := WPropertiesOn T M.
-  Module MDecide := WDecide (M).
-  Local Ltac msets := MDecide.fsetdec.
+  Module Import QM := QuoteSetsOn T M.
 
   Scheme Induction for M.Raw.tree Sort Type.
   Scheme Induction for M.Raw.tree Sort Set.
@@ -19,40 +136,6 @@ Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeT T).
   Scheme Minimality for M.Raw.tree Sort Type.
   Scheme Minimality for M.Raw.tree Sort Set.
   Scheme Minimality for M.Raw.tree Sort Prop.
-
-  Fixpoint Raw_InT_dec x t : { M.Raw.InT x t } + {~ M.Raw.InT x t}.
-  Proof.
-    refine match t with
-           | M.Raw.Leaf => right _
-           | M.Raw.Node z l n r
-             => match T.compare x n as c, Raw_InT_dec x l, Raw_InT_dec x r return CompareSpec _ _ _ c -> _ with
-                | Eq, _, _ => fun pf => left (_ pf)
-                | _, left pf, _ => fun _ => left _
-                | _, _, left pf => fun _ => left _
-                | _, right p2, right p3 => fun p1 => right (_ p1)
-                end (T.compare_spec x n)
-           end;
-      try solve [ inversion 1
-                | inversion 1; first [ constructor; first [ assumption | subst; reflexivity ] | exfalso; discriminate ]
-                | constructor; assumption
-                | do 2 inversion 1; subst; exfalso;
-                  try congruence;
-                  match goal with
-                  | [ H : T.lt _ _, H' : T.eq _ _ |- False ]
-                    => rewrite H' in H; now eapply M.Raw.MX.lt_irrefl
-                  end ].
-  Defined.
-  Definition Raw_In_dec x y : {M.Raw.In x y} + {~M.Raw.In x y}.
-  Proof.
-    cbv [M.Raw.In]; apply Raw_InT_dec.
-  Defined.
-  Definition In_dec x y : {M.In x y} + {~M.In x y}.
-  Proof.
-    cbv [M.In]; apply Raw_In_dec.
-  Defined.
-  Definition Inb x y := b_of_dec (In_dec x y).
-  Definition Inb_bp x y : Inb x y = true -> M.In x y := bp_of_dec.
-  Definition Inb_pb x y : M.In x y -> Inb x y = true := pb_of_dec.
 
   Section with_t.
     Context {quote_T_t : ground_quotable T.t}.
@@ -116,77 +199,118 @@ Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeT T).
         try solve [ constructor; assumption
                   | inversion 1; subst; auto ].
     Defined.
-    Definition M_Raw_bstb t := b_of_dec (M_Raw_bst_dec t).
-    Definition M_Raw_bstb_bst t : M_Raw_bstb t = true -> M.Raw.bst t := bp_of_dec.
-    Definition M_Raw_bstb_bst_alt t : M.Raw.bst t -> M_Raw_bstb t = true := pb_of_dec.
     #[export] Instance quote_Raw_bst t : ground_quotable (M.Raw.bst t)
-      := ground_quotable_of_bp (@M_Raw_bstb_bst t) (@M_Raw_bstb_bst_alt t).
+      := ground_quotable_of_dec (@M_Raw_bst_dec t).
     #[export] Instance quote_Raw_Ok s : ground_quotable (M.Raw.Ok s) := (ltac:(cbv [M.Raw.Ok]; exact _)).
     #[export] Instance quote_t : ground_quotable M.t := (ltac:(induction 1; exact _)).
-
-    #[export] Instance quote_In x y : ground_quotable (M.In x y)
-      := ground_quotable_of_bp (@Inb_bp x y) (@Inb_pb x y).
-
-    Definition Raw_For_all_alt (P : M.elt -> Prop) : M.Raw.t -> Prop
-      := fix Raw_For_all_alt (s : M.Raw.t) : Prop
-        := match s with
-           | M.Raw.Leaf => True
-           | M.Raw.Node z l n r => Raw_For_all_alt l /\ P n /\ Raw_For_all_alt r
-           end.
-    Definition For_all_alt (P : M.elt -> Prop) (s : M.t) : Prop
-      := Raw_For_all_alt P (M.this s).
-    #[local] Hint Constructors M.Raw.InT : core typeclass_instances.
-    #[local] Hint Extern 1 (T.eq _ _) => reflexivity : core.
-    Lemma For_all_alt_iff P {P_Proper : Proper (T.eq ==> Basics.impl) P} s
-      : M.For_all P s <-> For_all_alt P s.
-    Proof using Type.
-      cbv [For_all_alt M.For_all M.In M.Raw.In M.this]; destruct s as [s _].
-      split; induction s; cbn; intro H'; auto; try inversion 1; subst; repeat apply conj; destruct_head'_and.
-      all: (idtac + (eapply P_Proper; (idtac + symmetry))); now eauto.
-    Defined.
-    Definition For_all_alt1 {P} {P_Proper : Proper (T.eq ==> Basics.impl) P} {s}
-      : M.For_all P s -> For_all_alt P s.
-    Proof. apply For_all_alt_iff; assumption. Defined.
-    Definition For_all_alt2 {P} {P_Proper : Proper (T.eq ==> Basics.impl) P} {s}
-      : For_all_alt P s -> M.For_all P s.
-    Proof. apply For_all_alt_iff; assumption. Defined.
-    #[export] Instance quote_For_all_alt {P s} {quote_P : forall x, M.In x s -> ground_quotable (P x:Prop)} {qP : quotation_of P} : ground_quotable (For_all_alt P s).
-    Proof.
-      cbv [For_all_alt M.For_all M.In M.Raw.In M.this] in *; destruct s as [s _].
-      induction s; cbn [Raw_For_all_alt]; try exact _.
-      apply @quote_and; try exact _.
-      2: apply @quote_and; try exact _.
-      all: eauto.
-    Defined.
-    #[export] Instance quote_For_all {P s} {quote_P : forall x, M.In x s -> ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (T.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} : ground_quotable (M.For_all P s).
-    Proof.
-      intro pf.
-      let f := match goal with |- ?f _ => f end in
-      change (f (For_all_alt2 (For_all_alt1 pf))).
-      exact _.
-    Defined.
   End with_t.
+
+  Module Export Instances.
+    Export QM.OrdInstances.
+    #[export] Existing Instances
+     quote_M_Raw_t
+     quote_Raw_bst
+     quote_Raw_Ok
+     quote_t
+    .
+  End Instances.
 End QuoteMSetAVL.
 
-(*
-Module Type MSetList_MakeWithLeibnizT (T : OrderedTypeWithLeibniz). Include MSetList.MakeWithLeibniz T. End MSetList_MakeWithLeibnizT.
+Module QuoteUsualWSetsOn (E : UsualDecidableType) (Import M : WSetsOn E).
+  Module QM := QuoteWSetsOn E M.
 
-Module QuoteMSetListWithLeibniz (T : OrderedTypeWithLeibniz) (M : MSetList_MakeWithLeibnizT T).
-  Module MFact := WFactsOn T M.
-  Module MProp := WPropertiesOn T M.
-  Module MDecide := WDecide (M).
-  Local Ltac msets := MDecide.fsetdec.
+  #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (For_all P s)
+    := QM.quote_For_all.
+  Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (Exists P s)
+    := QM.quote_Exists_dec P_dec.
 
-  Search M.In "dec".
-  Print MDecide.
+  Notation quote_In := QM.quote_In.
+  Notation quote_Equal := QM.quote_Equal.
+  Notation quote_Subset := QM.quote_Subset.
+  Notation quote_Empty := QM.quote_Empty.
+  Notation quote_Add := QM.quote_Add.
+  Notation quote_neg_In := QM.quote_neg_In.
+  Notation quote_neg_Equal := QM.quote_neg_Equal.
+  Notation quote_neg_Subset := QM.quote_neg_Subset.
+  Notation quote_neg_Empty := QM.quote_neg_Empty.
 
-  Definition Raw_In_dec x y : {M.Raw.In x y} + {~M.Raw.In x y}.
+  Module Export Instances.
+    #[export] Existing Instances
+     QM.quote_In
+     QM.quote_Equal
+     QM.quote_Subset
+     QM.quote_Empty
+     QM.quote_Add
+     QM.quote_neg_In
+     QM.quote_neg_Equal
+     QM.quote_neg_Subset
+     QM.quote_neg_Empty
+     quote_For_all
+    .
+  End Instances.
+End QuoteUsualWSetsOn.
+
+Module QuoteUsualSetsOn (E : UsualOrderedType) (Import M : SetsOn E).
+  Module QM := QuoteUsualWSetsOn E M.
+  Module QM' := QuoteSetsOn E M.
+
+  Notation quote_In := QM.quote_In.
+  Notation quote_Equal := QM.quote_Equal.
+  Notation quote_Subset := QM.quote_Subset.
+  Notation quote_Empty := QM.quote_Empty.
+  Notation quote_Add := QM.quote_Add.
+  Notation quote_neg_In := QM.quote_neg_In.
+  Notation quote_neg_Equal := QM.quote_neg_Equal.
+  Notation quote_neg_Subset := QM.quote_neg_Subset.
+  Notation quote_neg_Empty := QM.quote_neg_Empty.
+  Notation quote_Above := QM'.quote_Above.
+  Notation quote_Below := QM'.quote_Below.
+
+  Module Export Instances.
+    Export QM.Instances QM'.OnlyOrdInstances.
+  End Instances.
+End QuoteUsualSetsOn.
+
+Module QuoteSetsOnWithLeibniz (E : OrderedTypeWithLeibniz) (Import M : SetsOn E).
+  Module QM := QuoteSetsOn E M.
+
+  #[local] Instance all_P_Proper {P : E.t -> Prop} : Proper (E.eq ==> Basics.impl) P.
   Proof.
-    cbv [M.Raw.In]; apply InA_dec, T.eq_dec.
+    intros ?? H.
+    apply E.eq_leibniz in H; subst; exact id.
   Defined.
-  Definition In_dec x y : {M.In x y} + {~M.In x y}.
-  Proof.
-    cbv [M.In]; apply Raw_In_dec.
-  Defined.
-End QuoteMSetListWithLeibniz.
-*)
+
+  #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (For_all P s)
+    := QM.quote_For_all.
+  Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (Exists P s)
+    := QM.quote_Exists_dec P_dec.
+
+  Notation quote_In := QM.quote_In.
+  Notation quote_Equal := QM.quote_Equal.
+  Notation quote_Subset := QM.quote_Subset.
+  Notation quote_Empty := QM.quote_Empty.
+  Notation quote_Add := QM.quote_Add.
+  Notation quote_neg_In := QM.quote_neg_In.
+  Notation quote_neg_Equal := QM.quote_neg_Equal.
+  Notation quote_neg_Subset := QM.quote_neg_Subset.
+  Notation quote_neg_Empty := QM.quote_neg_Empty.
+  Notation quote_Above := QM.quote_Above.
+  Notation quote_Below := QM.quote_Below.
+
+  Module Export Instances.
+    #[export] Existing Instances
+     QM.quote_In
+     QM.quote_Equal
+     QM.quote_Subset
+     QM.quote_Empty
+     QM.quote_Add
+     QM.quote_neg_In
+     QM.quote_neg_Equal
+     QM.quote_neg_Subset
+     QM.quote_neg_Empty
+     quote_For_all
+     QM.quote_Above
+     QM.quote_Below
+    .
+  End Instances.
+End QuoteSetsOnWithLeibniz.
