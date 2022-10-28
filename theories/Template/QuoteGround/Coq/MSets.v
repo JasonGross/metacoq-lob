@@ -17,20 +17,13 @@ Module QuoteWSetsOn (E : DecidableType) (Import W : WSetsOn E).
   #[export] Instance quote_neg_Equal {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Equal x y)
     := ground_quotable_neg_of_dec (eq_dec x y).
   #[export] Instance quote_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (Subset x y) := quote_of_iff (@subset_spec x y).
-  Lemma subset_neg_spec s s' : subset s s' = false <-> ~Subset s s'.
-  Proof.
-    rewrite <- subset_spec; destruct subset; intuition congruence.
-  Qed.
-  #[export] Instance quote_neg_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Subset x y) := quote_of_iff (@subset_neg_spec x y).
+  #[export] Instance quote_neg_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Subset x y) := quote_neg_of_iff (@subset_spec x y).
   #[export] Instance quote_Empty {x} {qx : quotation_of x} : ground_quotable (Empty x) := quote_of_iff (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x)).
-  Lemma empty_neg_spec x : ~x [=] empty <-> ~Empty x.
-  Proof.
-    rewrite <- (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x) : iff _ _).
-    reflexivity.
-  Qed.
-  #[export] Instance quote_neg_Empty {x} {qx : quotation_of x} : ground_quotable (~Empty x) := quote_of_iff (@empty_neg_spec x).
+  #[export] Instance quote_neg_Empty {x} {qx : quotation_of x} : ground_quotable (~Empty x) := quote_neg_of_iff (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x)).
   #[export] Instance quote_Add {x s s'} {qx : quotation_of x} {qs : quotation_of s} {qs' : quotation_of s'} : ground_quotable (WProperties.Add x s s')
     := quote_of_iff (iff_sym (WProperties.Add_Equal _ _ _)).
+  #[export] Instance quote_neg_Add {x s s'} {qx : quotation_of x} {qs : quotation_of s} {qs' : quotation_of s'} : ground_quotable (~WProperties.Add x s s')
+    := quote_neg_of_iff (iff_sym (WProperties.Add_Equal _ _ _)).
 
   Definition For_all_alt (P : elt -> Prop) (s : t) : Prop
     := List.Forall P (elements s).
@@ -48,6 +41,13 @@ Module QuoteWSetsOn (E : DecidableType) (Import W : WSetsOn E).
   Defined.
   #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} {qs : quotation_of s} : ground_quotable (For_all P s)
     := quote_of_iff For_all_alt_iff.
+  Lemma For_all_forall_iff {P s} : (For_all P s) <-> (forall v, In v s -> P v).
+  Proof. reflexivity. Qed.
+  Lemma For_all_forall2_iff {P s} : (For_all (fun v1 => For_all (P v1) s) s) <-> (forall v1 v2, In v1 s -> In v2 s -> P v1 v2).
+  Proof. cbv [For_all]; intuition eauto. Qed.
+  #[export] Instance quote_forall2_In {P s} {qP : quotation_of P} {qs : quotation_of s} {quote_For_all : ground_quotable (For_all (fun v1 => For_all (P v1) s) s)} : ground_quotable (forall v1 v2, In v1 s -> In v2 s -> P v1 v2)
+    := quote_of_iff For_all_forall2_iff.
+
   Definition Exists_alt (P : elt -> Prop) (s : t) : Prop
     := List.Exists P (elements s).
   Lemma Exists_alt_iff {P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {s}
@@ -74,12 +74,14 @@ Module QuoteWSetsOn (E : DecidableType) (Import W : WSetsOn E).
      quote_Equal
      quote_Subset
      quote_Empty
+     quote_Add
      quote_neg_In
      quote_neg_Equal
      quote_neg_Subset
      quote_neg_Empty
-     quote_Add
+     quote_neg_Add
      quote_For_all
+     quote_forall2_In
     .
   End Instances.
 End QuoteWSetsOn.
@@ -217,12 +219,13 @@ Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeT T).
 End QuoteMSetAVL.
 
 Module QuoteUsualWSetsOn (E : UsualDecidableType) (Import M : WSetsOn E).
-  Module QM := QuoteWSetsOn E M.
+  Module Import QM := QuoteWSetsOn E M.
 
   #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (For_all P s)
     := QM.quote_For_all.
   Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (Exists P s)
     := QM.quote_Exists_dec P_dec.
+  #[export] Instance quote_forall2_In {P s} {qP : quotation_of P} {qs : quotation_of s} {quote_elt : ground_quotable elt} {quote_P : forall x y, ground_quotable (P x y:Prop)} : ground_quotable (forall v1 v2, In v1 s -> In v2 s -> P v1 v2) := _.
 
   Notation quote_In := QM.quote_In.
   Notation quote_Equal := QM.quote_Equal.
@@ -233,6 +236,7 @@ Module QuoteUsualWSetsOn (E : UsualDecidableType) (Import M : WSetsOn E).
   Notation quote_neg_Equal := QM.quote_neg_Equal.
   Notation quote_neg_Subset := QM.quote_neg_Subset.
   Notation quote_neg_Empty := QM.quote_neg_Empty.
+  Notation quote_neg_Add := QM.quote_neg_Add.
 
   Module Export Instances.
     #[export] Existing Instances
@@ -245,7 +249,9 @@ Module QuoteUsualWSetsOn (E : UsualDecidableType) (Import M : WSetsOn E).
      QM.quote_neg_Equal
      QM.quote_neg_Subset
      QM.quote_neg_Empty
+     QM.quote_neg_Add
      quote_For_all
+     quote_forall2_In
     .
   End Instances.
 End QuoteUsualWSetsOn.
@@ -263,6 +269,7 @@ Module QuoteUsualSetsOn (E : UsualOrderedType) (Import M : SetsOn E).
   Notation quote_neg_Equal := QM.quote_neg_Equal.
   Notation quote_neg_Subset := QM.quote_neg_Subset.
   Notation quote_neg_Empty := QM.quote_neg_Empty.
+  Notation quote_neg_Add := QM.quote_neg_Add.
   Notation quote_Above := QM'.quote_Above.
   Notation quote_Below := QM'.quote_Below.
 
@@ -272,7 +279,7 @@ Module QuoteUsualSetsOn (E : UsualOrderedType) (Import M : SetsOn E).
 End QuoteUsualSetsOn.
 
 Module QuoteSetsOnWithLeibniz (E : OrderedTypeWithLeibniz) (Import M : SetsOn E).
-  Module QM := QuoteSetsOn E M.
+  Module Import QM := QuoteSetsOn E M.
 
   #[local] Instance all_P_Proper {P : E.t -> Prop} : Proper (E.eq ==> Basics.impl) P.
   Proof.
@@ -284,6 +291,7 @@ Module QuoteSetsOnWithLeibniz (E : OrderedTypeWithLeibniz) (Import M : SetsOn E)
     := QM.quote_For_all.
   Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (Exists P s)
     := QM.quote_Exists_dec P_dec.
+  #[export] Instance quote_forall2_In {P s} {qP : quotation_of P} {qs : quotation_of s} {quote_elt : ground_quotable elt} {quote_P : forall x y, ground_quotable (P x y:Prop)} : ground_quotable (forall v1 v2, In v1 s -> In v2 s -> P v1 v2) := _.
 
   Notation quote_In := QM.quote_In.
   Notation quote_Equal := QM.quote_Equal.
@@ -294,6 +302,7 @@ Module QuoteSetsOnWithLeibniz (E : OrderedTypeWithLeibniz) (Import M : SetsOn E)
   Notation quote_neg_Equal := QM.quote_neg_Equal.
   Notation quote_neg_Subset := QM.quote_neg_Subset.
   Notation quote_neg_Empty := QM.quote_neg_Empty.
+  Notation quote_neg_Add := QM.quote_neg_Add.
   Notation quote_Above := QM.quote_Above.
   Notation quote_Below := QM.quote_Below.
 
@@ -308,7 +317,9 @@ Module QuoteSetsOnWithLeibniz (E : OrderedTypeWithLeibniz) (Import M : SetsOn E)
      QM.quote_neg_Equal
      QM.quote_neg_Subset
      QM.quote_neg_Empty
+     QM.quote_neg_Add
      quote_For_all
+     quote_forall2_In
      QM.quote_Above
      QM.quote_Below
     .
