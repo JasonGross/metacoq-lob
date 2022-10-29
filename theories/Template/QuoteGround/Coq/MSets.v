@@ -1,6 +1,4 @@
 From Coq Require Import MSetInterface MSetList MSetAVL MSetFacts MSetProperties MSetDecide.
-From MetaCoq.Lob.Util.Tactics Require Import
-     DestructHead.
 From MetaCoq.Lob.Template.QuoteGround Require Export Coq.Numbers Coq.Init Coq.Lists.
 
 Module QuoteWSetsOn (E : DecidableType) (Import W : WSetsOn E).
@@ -8,66 +6,83 @@ Module QuoteWSetsOn (E : DecidableType) (Import W : WSetsOn E).
   Module WProperties := WPropertiesOn E W.
   Module WDecide := WDecideOn E W.
 
-  #[export] Instance quote_In {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (In x y)
-    := ground_quotable_of_dec (WProperties.In_dec x y).
-  #[export] Instance quote_neg_In {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~In x y)
-    := ground_quotable_neg_of_dec (WProperties.In_dec x y).
-  #[export] Instance quote_Equal {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (Equal x y)
-    := ground_quotable_of_dec (eq_dec x y).
-  #[export] Instance quote_neg_Equal {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Equal x y)
-    := ground_quotable_neg_of_dec (eq_dec x y).
-  #[export] Instance quote_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (Subset x y) := quote_of_iff (@subset_spec x y).
-  #[export] Instance quote_neg_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Subset x y) := quote_neg_of_iff (@subset_spec x y).
-  #[export] Instance quote_Empty {x} {qx : quotation_of x} : ground_quotable (Empty x) := quote_of_iff (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x)).
-  #[export] Instance quote_neg_Empty {x} {qx : quotation_of x} : ground_quotable (~Empty x) := quote_neg_of_iff (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x)).
-  #[export] Instance quote_Add {x s s'} {qx : quotation_of x} {qs : quotation_of s} {qs' : quotation_of s'} : ground_quotable (WProperties.Add x s s')
-    := quote_of_iff (iff_sym (WProperties.Add_Equal _ _ _)).
-  #[export] Instance quote_neg_Add {x s s'} {qx : quotation_of x} {qs : quotation_of s} {qs' : quotation_of s'} : ground_quotable (~WProperties.Add x s s')
-    := quote_neg_of_iff (iff_sym (WProperties.Add_Equal _ _ _)).
+  Section with_quote.
+    Context {qelt : quotation_of elt} {qt : quotation_of t}
+            {qIn : quotation_of In}
+            {qeq_dec : quotation_of eq_dec}
+            {qsubset_spec : quotation_of subset_spec}
+            {qempty : quotation_of empty}
+            {qadd : quotation_of add} {qelements : quotation_of elements}.
 
-  Definition For_all_alt (P : elt -> Prop) (s : t) : Prop
-    := List.Forall P (elements s).
-  #[local] Hint Extern 1 (E.eq _ _) => reflexivity : core.
-  Lemma For_all_alt_iff {P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {s}
-    : For_all_alt P s <-> For_all P s.
-  Proof.
-    cbv [For_all_alt For_all].
-    setoid_rewrite WFacts.elements_iff.
-    induction (elements s) as [|x xs IH].
-    { split; solve [ constructor | inversion 2 ]. }
-    { setoid_rewrite Forall_cons_iff; setoid_rewrite InA_cons; setoid_rewrite IH.
-      intuition auto.
-      eapply P_Proper; (idtac + symmetry); eassumption. }
-  Defined.
-  #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} {qs : quotation_of s} : ground_quotable (For_all P s)
-    := quote_of_iff For_all_alt_iff.
-  Lemma For_all_forall_iff {P s} : (For_all P s) <-> (forall v, In v s -> P v).
-  Proof. reflexivity. Qed.
-  Lemma For_all_forall2_iff {P s} : (For_all (fun v1 => For_all (P v1) s) s) <-> (forall v1 v2, In v1 s -> In v2 s -> P v1 v2).
-  Proof. cbv [For_all]; intuition eauto. Qed.
-  #[export] Instance quote_forall2_In {P s} {qP : quotation_of P} {qs : quotation_of s} {quote_For_all : ground_quotable (For_all (fun v1 => For_all (P v1) s) s)} : ground_quotable (forall v1 v2, In v1 s -> In v2 s -> P v1 v2)
-    := quote_of_iff For_all_forall2_iff.
+    #[export] Instance qEqual : quotation_of Equal := ltac:(cbv [Equal]; exact _).
+    #[export] Instance qSubset : quotation_of Subset := ltac:(cbv [Subset]; exact _).
+    #[export] Instance qEmpty : quotation_of Empty := ltac:(cbv [Empty]; exact _).
 
-  Definition Exists_alt (P : elt -> Prop) (s : t) : Prop
-    := List.Exists P (elements s).
-  Lemma Exists_alt_iff {P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {s}
-    : Exists_alt P s <-> Exists P s.
-  Proof.
-    cbv [Exists_alt Exists].
-    setoid_rewrite WFacts.elements_iff.
-    induction (elements s) as [|x xs IH].
-    { split; try solve [ constructor | inversion 1 | intros [x [H H']]; inversion H ]. }
-    { setoid_rewrite Exists_cons; setoid_rewrite InA_cons; setoid_rewrite IH.
-      firstorder intuition auto. }
-  Defined.
-  Definition Exists_dec {P s} (P_dec : forall x, {P x} + {~P x}) {P_Proper : Proper (E.eq ==> Basics.impl) P} : {Exists P s} + {~Exists P s}.
-  Proof.
-    destruct (List.Exists_dec P (elements s) P_dec) as [H|H]; [ left | right ]; revert H.
-    { intro H; apply Exists_alt_iff, H. }
-    { intros H H'; apply H, Exists_alt_iff, H'. }
-  Defined.
-  Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} {qs : quotation_of s} : ground_quotable (Exists P s)
-    := ground_quotable_of_dec (Exists_dec P_dec).
+    #[export] Instance quote_In {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (In x y)
+      := ground_quotable_of_dec (WProperties.In_dec x y).
+    #[export] Instance quote_neg_In {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~In x y)
+      := ground_quotable_neg_of_dec (WProperties.In_dec x y).
+    #[export] Instance quote_Equal {x y} {qx : quotation_of x} {qy : quotation_of y}  : ground_quotable (Equal x y)
+      := ground_quotable_of_dec (eq_dec x y).
+    #[export] Instance quote_neg_Equal {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Equal x y)
+      := ground_quotable_neg_of_dec (eq_dec x y).
+    #[export] Instance quote_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (Subset x y) := quote_of_iff (@subset_spec x y).
+    #[export] Instance quote_neg_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Subset x y) := quote_neg_of_iff (@subset_spec x y).
+    #[export] Instance quote_Empty {x} {qx : quotation_of x} : ground_quotable (Empty x) := quote_of_iff (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x)).
+    #[export] Instance quote_neg_Empty {x} {qx : quotation_of x} : ground_quotable (~Empty x) := quote_neg_of_iff (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x)).
+    #[export] Instance quote_Add {x s s'} {qx : quotation_of x} {qs : quotation_of s} {qs' : quotation_of s'} : ground_quotable (WProperties.Add x s s')
+      := quote_of_iff (iff_sym (WProperties.Add_Equal _ _ _)).
+    #[export] Instance quote_neg_Add {x s s'} {qx : quotation_of x} {qs : quotation_of s} {qs' : quotation_of s'} : ground_quotable (~WProperties.Add x s s')
+      := quote_neg_of_iff (iff_sym (WProperties.Add_Equal _ _ _)).
+
+    Definition For_all_alt (P : elt -> Prop) (s : t) : Prop
+      := List.Forall P (elements s).
+    #[local] Hint Extern 1 (E.eq _ _) => reflexivity : core.
+    Lemma For_all_alt_iff {P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {s}
+      : For_all_alt P s <-> For_all P s.
+    Proof using Type.
+      cbv [For_all_alt For_all].
+      setoid_rewrite WFacts.elements_iff.
+      induction (elements s) as [|x xs IH].
+      { split; solve [ constructor | inversion 2 ]. }
+      { setoid_rewrite Forall_cons_iff; setoid_rewrite InA_cons; setoid_rewrite IH.
+        intuition auto.
+        eapply P_Proper; (idtac + symmetry); eassumption. }
+    Defined.
+    #[export] Instance qFor_all : quotation_of For_all := ltac:(cbv [For_all]; exact _).
+    #[export] Instance qExists : quotation_of Exists := ltac:(cbv [Exists]; exact _).
+    #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} {qs : quotation_of s} : ground_quotable (For_all P s)
+      := quote_of_iff For_all_alt_iff.
+    Lemma For_all_forall_iff {P s} : (For_all P s) <-> (forall v, In v s -> P v).
+    Proof using Type. reflexivity. Qed.
+    Lemma For_all_forall2_iff {P s} : (For_all (fun v1 => For_all (P v1) s) s) <-> (forall v1 v2, In v1 s -> In v2 s -> P v1 v2).
+    Proof using Type. cbv [For_all]; intuition eauto. Qed.
+    #[export] Instance quote_forall2_In {P s} {qP : quotation_of P} {qs : quotation_of s} {quote_For_all : ground_quotable (For_all (fun v1 => For_all (P v1) s) s)} : ground_quotable (forall v1 v2, In v1 s -> In v2 s -> P v1 v2)
+      := quote_of_iff For_all_forall2_iff.
+
+    Definition Exists_alt (P : elt -> Prop) (s : t) : Prop
+      := List.Exists P (elements s).
+    Lemma Exists_alt_iff {P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {s}
+      : Exists_alt P s <-> Exists P s.
+    Proof.
+      cbv [Exists_alt Exists].
+      setoid_rewrite WFacts.elements_iff.
+      induction (elements s) as [|x xs IH].
+      { split; try solve [ constructor | inversion 1 | intros [x [H H']]; inversion H ]. }
+      { setoid_rewrite Exists_cons; setoid_rewrite InA_cons; setoid_rewrite IH.
+        firstorder intuition auto. }
+    Defined.
+    Definition Exists_dec {P s} (P_dec : forall x, {P x} + {~P x}) {P_Proper : Proper (E.eq ==> Basics.impl) P} : {Exists P s} + {~Exists P s}.
+    Proof.
+      destruct (List.Exists_dec P (elements s) P_dec) as [H|H]; [ left | right ]; revert H.
+      { intro H; apply Exists_alt_iff, H. }
+      { intros H H'; apply H, Exists_alt_iff, H'. }
+    Defined.
+
+    Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} {qs : quotation_of s} : ground_quotable (Exists P s)
+      := ground_quotable_of_dec (Exists_dec P_dec).
+  End with_quote.
+
   Module Export Instances.
     #[export] Existing Instances
      quote_In
@@ -129,6 +144,20 @@ Module Type MSetAVL_MakeT (T : OrderedType). Include MSetAVL.Make T. End MSetAVL
 
 Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeT T).
   Module Import QM := QuoteSetsOn T M.
+
+  Notation quote_In := QM.quote_In.
+  Notation quote_Equal := QM.quote_Equal.
+  Notation quote_Subset := QM.quote_Subset.
+  Notation quote_Empty := QM.quote_Empty.
+  Notation quote_Add := QM.quote_Add.
+  Notation quote_For_all := QM.quote_For_all.
+  Notation quote_neg_In := QM.quote_neg_In.
+  Notation quote_neg_Equal := QM.quote_neg_Equal.
+  Notation quote_neg_Subset := QM.quote_neg_Subset.
+  Notation quote_neg_Empty := QM.quote_neg_Empty.
+  Notation quote_neg_Add := QM.quote_neg_Add.
+  Notation quote_Above := QM.quote_Above.
+  Notation quote_Below := QM.quote_Below.
 
   Scheme Induction for M.Raw.tree Sort Type.
   Scheme Induction for M.Raw.tree Sort Set.
@@ -221,11 +250,20 @@ End QuoteMSetAVL.
 Module QuoteUsualWSetsOn (E : UsualDecidableType) (Import M : WSetsOn E).
   Module Import QM := QuoteWSetsOn E M.
 
-  #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (For_all P s)
-    := QM.quote_For_all.
-  Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (Exists P s)
-    := QM.quote_Exists_dec P_dec.
-  #[export] Instance quote_forall2_In {P s} {qP : quotation_of P} {qs : quotation_of s} {quote_elt : ground_quotable elt} {quote_P : forall x y, ground_quotable (P x y:Prop)} : ground_quotable (forall v1 v2, In v1 s -> In v2 s -> P v1 v2) := _.
+  Section with_quote.
+    Context {qelt : quotation_of elt} {qt : quotation_of t}
+            {qIn : quotation_of In}
+            {qeq_dec : quotation_of eq_dec}
+            {qsubset_spec : quotation_of subset_spec}
+            {qempty : quotation_of empty}
+            {qadd : quotation_of add} {qelements : quotation_of elements}.
+
+    #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (For_all P s)
+      := QM.quote_For_all.
+    Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (Exists P s)
+      := QM.quote_Exists_dec P_dec.
+    #[export] Instance quote_forall2_In {P s} {qP : quotation_of P} {qs : quotation_of s} {quote_elt : ground_quotable elt} {quote_P : forall x y, ground_quotable (P x y:Prop)} : ground_quotable (forall v1 v2, In v1 s -> In v2 s -> P v1 v2) := _.
+  End with_quote.
 
   Notation quote_In := QM.quote_In.
   Notation quote_Equal := QM.quote_Equal.
@@ -287,11 +325,20 @@ Module QuoteSetsOnWithLeibniz (E : OrderedTypeWithLeibniz) (Import M : SetsOn E)
     apply E.eq_leibniz in H; subst; exact id.
   Defined.
 
-  #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (For_all P s)
-    := QM.quote_For_all.
-  Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (Exists P s)
-    := QM.quote_Exists_dec P_dec.
-  #[export] Instance quote_forall2_In {P s} {qP : quotation_of P} {qs : quotation_of s} {quote_elt : ground_quotable elt} {quote_P : forall x y, ground_quotable (P x y:Prop)} : ground_quotable (forall v1 v2, In v1 s -> In v2 s -> P v1 v2) := _.
+  Section with_quote.
+    Context {qelt : quotation_of elt} {qt : quotation_of t}
+            {qIn : quotation_of In}
+            {qeq_dec : quotation_of eq_dec}
+            {qsubset_spec : quotation_of subset_spec}
+            {qempty : quotation_of empty}
+            {qadd : quotation_of add} {qelements : quotation_of elements}.
+
+    #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (For_all P s)
+      := QM.quote_For_all.
+    Definition quote_Exists_dec {P} (P_dec : forall x, {P x} + {~P x}) {s} {quote_elt : ground_quotable elt} {qP_dec : quotation_of P_dec} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {qs : quotation_of s} : ground_quotable (Exists P s)
+      := QM.quote_Exists_dec P_dec.
+    #[export] Instance quote_forall2_In {P s} {qP : quotation_of P} {qs : quotation_of s} {quote_elt : ground_quotable elt} {quote_P : forall x y, ground_quotable (P x y:Prop)} : ground_quotable (forall v1 v2, In v1 s -> In v2 s -> P v1 v2) := _.
+  End with_quote.
 
   Notation quote_In := QM.quote_In.
   Notation quote_Equal := QM.quote_Equal.
