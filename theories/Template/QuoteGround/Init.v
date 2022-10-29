@@ -16,11 +16,13 @@ Fixpoint modpath_is_absolute (mp : modpath) : bool
      | MPbound _ _ _ => false
      | MPdot mp _ => modpath_is_absolute mp
      end.
-(* returns false iff a term is suitable for quotation at the top-level, i.e., returns true iff it mentions functor-bound arguments or is a local variable *)
+(* returns false iff a term is suitable for quotation at the top-level, i.e., returns true iff it mentions functor-bound arguments or is a local variable or evar *)
 Definition head_term_is_bound (t : term) : bool
   := match t with
      | tConst (kn, _) _ => negb (modpath_is_absolute kn)
-     | tVar _ => true
+     | tVar _
+     | tEvar _ _
+       => true
      | _ => false
      end.
 

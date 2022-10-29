@@ -46,7 +46,7 @@ Module QuoteWSfun (E : DecidableType) (Import W : WSfun E).
                             end in
       List.Forall (fun '(k, _) => eq_opt_elt (find k m) (find k m')) (@elements elt m)
       /\ List.Forall (fun '(k, _) => eq_opt_elt (find k m) (find k m')) (@elements elt m').
-    #[local] Hint Extern 1 => break_innermost_match_step : typeclass_instances.
+    Import StrongerInstances.
     #[export] Instance quote_Equiv_alt {eq_elt} {m m'} {qeq_elt : quotation_of eq_elt} {quote_elt : ground_quotable elt} {quote_key : ground_quotable key} {quote_eq_elt : forall x y, ground_quotable (eq_elt x y:Prop)} {qm : quotation_of m} {qm' : quotation_of m'} : ground_quotable (@Equiv_alt eq_elt m m') := _.
     Lemma Equiv_alt_iff {eq_elt m m'} : Equiv_alt eq_elt m m' <-> Equiv eq_elt m m'.
     Proof using Type.

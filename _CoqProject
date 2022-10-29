@@ -17,6 +17,8 @@ theories/Template/QuoteGround/Coq/Strings.v
 theories/Template/QuoteGround/Coq/ssr.v
 theories/Template/QuoteGround/Init.v
 theories/Template/QuoteGround/Kernames.v
+theories/Template/QuoteGround/Primitive.v
+theories/Template/QuoteGround/config.v
 theories/Template/QuoteGround/monad_utils.v
 theories/Template/QuoteGround/utils.v
 theories/Template/QuoteGround/utils/All_Forall.v
