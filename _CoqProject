@@ -4,8 +4,10 @@ theories/Lob.v
 theories/PCUIC/QuoteGround.v
 theories/QuoteGround.v
 theories/Template/QuoteGround.v
+theories/Template/QuoteGround/BasicAst.v
 theories/Template/QuoteGround/Coq/Bool.v
 theories/Template/QuoteGround/Coq/FSets.v
+theories/Template/QuoteGround/Coq/Floats.v
 theories/Template/QuoteGround/Coq/Init.v
 theories/Template/QuoteGround/Coq/Lists.v
 theories/Template/QuoteGround/Coq/MSets.v
@@ -14,6 +16,7 @@ theories/Template/QuoteGround/Coq/Numbers.v
 theories/Template/QuoteGround/Coq/Strings.v
 theories/Template/QuoteGround/Coq/ssr.v
 theories/Template/QuoteGround/Init.v
+theories/Template/QuoteGround/Kernames.v
 theories/Template/QuoteGround/monad_utils.v
 theories/Template/QuoteGround/utils.v
 theories/Template/QuoteGround/utils/All_Forall.v

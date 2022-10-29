@@ -18,3 +18,5 @@ Proof.
             revert pf; change (ground_quotable t)).
   all: adjust_ground_quotable_by_econstructor_inversion ().
 Defined.
+
+#[export] Polymorphic Instance quote_option_default {A P o b} {quoteP : forall x, o = Some x -> ground_quotable (P x)} {quoteP' : o = None -> ground_quotable b} : ground_quotable (@option_default A Type P o b) := ltac:(destruct o; exact _).
