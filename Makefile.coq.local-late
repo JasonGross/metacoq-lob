@@ -1,0 +1,1 @@
+COQEXTRAFLAGS += -w -masking-absolute-name

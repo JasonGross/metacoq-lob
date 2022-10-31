@@ -575,59 +575,6 @@ Definition wf_universe_pb Σ s : wf_universe Σ s -> wf_universeb Σ s = true :=
 
 #[export] Instance quote_wf_universe {Σ s} : ground_quotable (@wf_universe Σ s) := ground_quotable_of_bp (@wf_universe_bp Σ s) (@wf_universe_pb Σ s).
 
-
-Definition valid_constraints_dec cf ϕ cstrs : {@valid_constraints cf ϕ cstrs} + {~@valid_constraints cf ϕ cstrs}.
-Proof.
-  pose proof (fun G uctx a b c => check_constraints_spec (make_graph G) (uctx, ϕ) a b c cstrs) as H1.
-  pose proof (fun G uctx a b c => check_constraints_complete (make_graph G) (uctx, ϕ) a b c cstrs) as H2.
-  cbn [fst snd] in *.
-  cbv [valid_constraints] in *; break_match; try solve [ left; exact I ].
-  specialize (fun G uctx a b c => H2 G uctx a b c eq_refl).
-  cbv [is_graph_of_uctx on_Some global_uctx_invariants uctx_invariants] in *; cbn [fst snd] in *.
-Admitted.
-
-Definition valid_constraints_b cf ϕ cstrs : bool := b_of_dec (@valid_constraints_dec cf ϕ cstrs).
-Definition valid_constraints_bp cf ϕ cstrs : @valid_constraints_b cf ϕ cstrs = true -> @valid_constraints cf ϕ cstrs := bp_of_dec.
-Definition valid_constraints_pb cf ϕ cstrs : @valid_constraints cf ϕ cstrs -> @valid_constraints_b cf ϕ cstrs = true := pb_of_dec.
-#[export] Instance quote_valid_constraints {cf ϕ cstrs} : ground_quotable (@valid_constraints cf ϕ cstrs)
-  := ground_quotable_of_bp (@valid_constraints_bp cf ϕ cstrs) (@valid_constraints_pb cf ϕ cstrs).
-#[export] Instance quote_consistent_instance {H lvls ϕ uctx u} : ground_quotable (@consistent_instance H lvls ϕ uctx u) := ltac:(cbv [consistent_instance]; destruct uctx; try exact _).
-#[export] Instance quote_consistent_instance_ext {H Σ u i} : ground_quotable (@consistent_instance_ext H Σ u i) := _.
-
-Definition eq_levelalg_dec {cf ϕ u u'} : {@eq_levelalg cf ϕ u u'} + {~@eq_levelalg cf ϕ u u'}.
-Proof.
-  destruct (gc_eq_levelalg_iff ϕ u u') as [f1 f2].
-  cbv [on_Some_or_None] in *.
-  destruct gc_of_constraints; auto.
-  cbv [gc_eq_levelalg] in *.
-  cbv [gc_eq0_levelalg] in *.
-  break_innermost_match_hyps; try solve [ left; auto ].
-Admitted.
-Definition eq_levelalg_b cf ϕ u u' : bool := b_of_dec (@eq_levelalg_dec cf ϕ u u').
-Definition eq_levelalg_bp cf ϕ u u' : @eq_levelalg_b cf ϕ u u' = true -> @eq_levelalg cf ϕ u u' := bp_of_dec.
-Definition eq_levelalg_pb cf ϕ u u' : @eq_levelalg cf ϕ u u' -> @eq_levelalg_b cf ϕ u u' = true := pb_of_dec.
-#[export] Instance quote_eq_levelalg {cf ϕ u u'} : ground_quotable (@eq_levelalg cf ϕ u u')
-  := ground_quotable_of_bp (@eq_levelalg_bp cf ϕ u u') (@eq_levelalg_pb cf ϕ u u').
-Definition leq_levelalg_n_dec {cf n ϕ u u'} : {@leq_levelalg_n cf n ϕ u u'} + {~@leq_levelalg_n cf n ϕ u u'}.
-Proof.
-  destruct (@gc_leq_levelalg_n_iff cf n ϕ u u') as [f1 f2].
-  cbv [on_Some_or_None] in *.
-  destruct gc_of_constraints; auto.
-  cbv [gc_leq_levelalg_n] in *.
-  cbv [gc_leq0_levelalg_n] in *.
-  break_innermost_match_hyps; try solve [ left; auto ].
-Admitted.
-Definition leq_levelalg_n_b cf n ϕ u u' : bool := b_of_dec (@leq_levelalg_n_dec cf n ϕ u u').
-Definition leq_levelalg_n_bp cf n ϕ u u' : @leq_levelalg_n_b cf n ϕ u u' = true -> @leq_levelalg_n cf n ϕ u u' := bp_of_dec.
-Definition leq_levelalg_n_pb cf n ϕ u u' : @leq_levelalg_n cf n ϕ u u' -> @leq_levelalg_n_b cf n ϕ u u' = true := pb_of_dec.
-#[export] Instance quote_leq_levelalg_n {cf n ϕ u u'} : ground_quotable (@leq_levelalg_n cf n ϕ u u')
-  := ground_quotable_of_bp (@leq_levelalg_n_bp cf n ϕ u u') (@leq_levelalg_n_pb cf n ϕ u u').
-#[export] Instance quote_eq_universe_ {CS eq_levelalg ϕ s s'} {qeq_levelalg : forall u u', ground_quotable (eq_levelalg ϕ u u':Prop)} : ground_quotable (@eq_universe_ CS eq_levelalg ϕ s s') := ltac:(cbv [eq_universe_]; exact _).
-#[export] Instance quote_eq_universe {cf ϕ s s'} : ground_quotable (@eq_universe cf ϕ s s') := _.
-#[export] Instance quote_leq_universe_n_ {cf CS leq_levelalg_n n ϕ s s'} {qleq_levelalg_n : forall n u u', ground_quotable (leq_levelalg_n n ϕ u u':Prop)} : ground_quotable (@leq_universe_n_ cf CS leq_levelalg_n n ϕ s s') := ltac:(cbv [leq_universe_n_]; exact _).
-#[export] Instance quote_leq_universe {cf ϕ s s'} : ground_quotable (@leq_universe cf ϕ s s') := _.
-#[export] Instance quote_is_lSet {cf ϕ s} : ground_quotable (@is_lSet cf ϕ s) := _.
-#[export] Instance quote_is_allowed_elimination {cf ϕ allowed u} : ground_quotable (@is_allowed_elimination cf ϕ allowed u) := ltac:(destruct allowed; exact _).
 #[export] Instance quote_conv_pb : ground_quotable conv_pb := ltac:(destruct 1; exact _).
 
 #[export] Instance quote_compare_universe {cf pb ϕ s s'} : ground_quotable (@compare_universe cf pb ϕ s s') := ltac:(destruct pb; exact _).

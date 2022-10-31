@@ -3,6 +3,7 @@
 theories/Lob.v
 theories/PCUIC/QuoteGround.v
 theories/QuoteGround.v
+theories/Template/Decidable/EnvironmentTyping.v
 theories/Template/Decidable/Universes.v
 theories/Template/Decidable/common/uGraph.v
 theories/Template/QuoteGround.v

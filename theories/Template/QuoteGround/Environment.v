@@ -48,4 +48,22 @@ Module QuoteEnvironment (T : Term) (Import E : EnvironmentSig T) (Import QT : Qu
 
   #[export] Instance quote_All_decls {P t t'} {qP : quotation_of P} {quoteP : forall t t', ground_quotable (P t t')} : ground_quotable (All_decls P t t') := ltac:(induction 1; exact _).
   #[export] Instance quote_All_decls_alpha {P t t'} {qP : quotation_of P} {quoteP : forall t t', ground_quotable (P t t')} : ground_quotable (All_decls_alpha P t t') := ltac:(induction 1; exact _).
+
+  Module Instances.
+    #[export] Existing Instances
+     quote_constructor_body
+     quote_projection_body
+     quote_one_inductive_body
+     quote_mutual_inductive_body
+     quote_constant_body
+     quote_global_decl
+     quote_global_env
+     qglobal_declarations
+     quote_extends
+     quote_extends_decls
+     quote_primitive_invariants
+     quote_All_decls
+     quote_All_decls_alpha
+    .
+  End Instances.
 End QuoteEnvironment.
