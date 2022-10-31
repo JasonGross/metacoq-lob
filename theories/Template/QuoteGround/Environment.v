@@ -26,19 +26,30 @@ Module Type QuoteTerm (T : Term).
   .
 End QuoteTerm.
 
-Module QuoteEnvironment (T : Term) (Import E : EnvironmentSig T) (Import QT : QuoteTerm T).
-  #[export] Instance quote_constructor_body : ground_quotable constructor_body := ltac:(destruct 1; exact _).
-  #[export] Instance quote_projection_body : ground_quotable projection_body := ltac:(destruct 1; exact _).
-  #[export] Instance quote_one_inductive_body : ground_quotable one_inductive_body := ltac:(destruct 1; exact _).
-  #[export] Instance quote_mutual_inductive_body : ground_quotable mutual_inductive_body := ltac:(destruct 1; exact _).
-  #[export] Instance quote_constant_body : ground_quotable constant_body := ltac:(destruct 1; exact _).
-  #[export] Instance quote_global_decl : ground_quotable global_decl := ltac:(destruct 1; exact _).
-  #[export] Instance quote_global_env : ground_quotable global_env := ltac:(destruct 1; exact _).
+Module Type QuotationOfEnvironment (T : Term) (Import E : EnvironmentSig T).
+  #[export] Declare Instance qBuild_constructor_body : quotation_of Build_constructor_body.
+  #[export] Declare Instance qBuild_projection_body : quotation_of Build_projection_body.
+End QuotationOfEnvironment.
 
+Module QuoteEnvironment (T : Term) (Import E : EnvironmentSig T) (Import QT : QuoteTerm T) (Import QoE : QuotationOfEnvironment T E).
+
+  #[export] Instance quote_constructor_body : ground_quotable constructor_body := ltac:(destruct 1; exact _).
+    #[export] Instance quote_projection_body : ground_quotable projection_body := ltac:(destruct 1; exact _).
+    #[export] Instance quote_one_inductive_body : ground_quotable one_inductive_body := ltac:(destruct 1; exact _).
+    #[export] Instance quote_mutual_inductive_body : ground_quotable mutual_inductive_body := ltac:(destruct 1; exact _).
+    #[export] Instance quote_constant_body : ground_quotable constant_body := ltac:(destruct 1; exact _).
+    #[export] Instance quote_global_decl : ground_quotable global_decl := ltac:(destruct 1; exact _).
+    #[export] Instance quote_global_env : ground_quotable global_env := ltac:(destruct 1; exact _).
+
+  #[export] Instance qdeclarations : quotation_of declarations := ltac:(cbv -[quotation_of]; exact _).
+  Import Template.utils.bytestring.
+  Print qdeclarations.
   Section with_quote.
-    Context {qglobal_decl : quotation_of global_decl}
-            {qdeclarations : quotation_of declarations}
-            {qcst_type : quotation_of cst_type} {qcst_body : quotation_of cst_body} {qcst_universes : quotation_of cst_universes}.
+    Context {qglobal_decl : quotation_of global_decl}.
+
+    #[export] Instance qcst_type : quotation_of cst_type := ltac:(cbv -[quotation_of]; exact _).
+    #[export] Instance qcst_body : quotation_of cst_body := ltac:(cbv -[quotation_of]; exact _).
+    #[export] Instance qcst_universes : quotation_of cst_universes := ltac:(cbv -[quotation_of]; exact _).
 
     #[export] Instance qglobal_declarations : quotation_of global_declarations := ltac:(cbv [global_declarations]; exact _).
     #[export] Instance quote_extends {Σ Σ'} : ground_quotable (@extends Σ Σ') := ltac:(cbv [extends]; exact _).

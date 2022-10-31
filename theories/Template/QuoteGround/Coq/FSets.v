@@ -128,7 +128,9 @@ Module QuoteFMapAVL (T : OrderedType) (M : FMapAVL_MakeSig T).
 
   Section with_t.
     Context {elt : Type}
-            {qelt : quotation_of elt}
+            {qelt : quotation_of elt} {qtree : inductive_quotation_of M.Raw.tree}
+            {qRaw_bst : inductive_quotation_of M.Raw.bst}
+            {qbst : inductive_quotation_of M.bst}
             {quote_elt : ground_quotable elt} {quote_T_t : ground_quotable T.t}.
 
     #[export] Instance quote_M_Raw_t : ground_quotable (M.Raw.t elt) := (ltac:(induction 1; exact _)).

@@ -26,6 +26,10 @@ Module QuoteWeightedGraph (V : UsualOrderedType) (VSet : MSetInterface.S with Mo
     Context {qEdgeSet_t : quotation_of EdgeSet.t} {qV_t : quotation_of V.t} {qVSet_t : quotation_of VSet.t}
             {qVSet_In : quotation_of VSet.In} {qEdgeSet_In : quotation_of EdgeSet.In}
             {qVSet_eq_dec : quotation_of VSet.eq_dec} {qVSet_add : quotation_of VSet.add} {qEdgeSet_subset_spec : quotation_of EdgeSet.subset_spec} {qlsp : quotation_of lsp}
+            {qEdgeSet_tree : inductive_quotation_of EdgeSet.Raw.tree} {qEdgeSetbst : inductive_quotation_of EdgeSet.Raw.bst} {qEdgeSet_t_ : inductive_quotation_of EdgeSet.t_}
+            {qPathOf : inductive_quotation_of PathOf}
+            {qSPath : inductive_quotation_of SPath}
+            {qsubgraph : inductive_quotation_of subgraph} {qfull_subgraph : inductive_quotation_of full_subgraph}
             {quote_V_t : ground_quotable V.t} {quote_VSet_t : ground_quotable VSet.t}.
 
     #[export] Instance qEdgeSet_elt : quotation_of EdgeSet.elt := ltac:(cbv -[quotation_of]; exact _).
@@ -34,7 +38,7 @@ Module QuoteWeightedGraph (V : UsualOrderedType) (VSet : MSetInterface.S with Mo
     #[export] Instance qWV : quotation_of W.V := ltac:(cbv [W.V]; exact _).
     #[export] Instance qVSetProp_Add : quotation_of VSetProp.Add := ltac:(cbv [VSetProp.Add]; exact _).
     #[export] Instance qVSet : quotation_of VSetProp.Add := ltac:(cbv [VSetProp.Add]; exact _).
-
+    #[export] Instance quote_t : ground_quotable t := _.
     #[export] Instance quote_PathOf {G x y} : ground_quotable (@PathOf G x y) := ltac:(induction 1; exact _).
     #[export] Instance quote_SPath {G s x y} : ground_quotable (@SPath G s x y) := ltac:(induction 1; exact _).
     #[export] Instance quote_subgraph {G1 G2} : ground_quotable (@subgraph G1 G2) := ltac:(induction 1; exact _).
@@ -70,6 +74,7 @@ Module QuoteWeightedGraph (V : UsualOrderedType) (VSet : MSetInterface.S with Mo
     Export QuoteEdgeSet.Instances.
     Export Edge.Instances.
     #[export] Existing Instances
+     quote_t
      quote_PathOf
      quote_SPath
      quote_subgraph

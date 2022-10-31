@@ -171,7 +171,10 @@ Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeSig T).
     Scheme Minimality for M.Raw.tree Sort Prop.
 
     Section with_t.
-      Context {quote_T_t : ground_quotable T.t}.
+      Context {quote_T_t : ground_quotable T.t}
+              {qRaw_tree : inductive_quotation_of M.Raw.tree}
+              {qRaw_bst : inductive_quotation_of M.Raw.bst}
+              {qt_ : inductive_quotation_of M.t_}.
 
       #[export] Instance quote_M_Raw_t : ground_quotable M.Raw.t := (ltac:(induction 1; exact _)).
       Fixpoint M_Raw_lt_tree_dec x t : { M.Raw.lt_tree x t } + {~ M.Raw.lt_tree x t}.
@@ -235,7 +238,7 @@ Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeSig T).
       #[export] Instance quote_Raw_bst t : ground_quotable (M.Raw.bst t)
         := ground_quotable_of_dec (@M_Raw_bst_dec t).
       #[export] Instance quote_Raw_Ok s : ground_quotable (M.Raw.Ok s) := (ltac:(cbv [M.Raw.Ok]; exact _)).
-      #[export] Instance quote_t : ground_quotable M.t := (ltac:(induction 1; exact _)).
+      #[export] Instance quote_t : ground_quotable M.t := ltac:(induction 1; exact _).
     End with_t.
   End Definitions.
   Include Definitions.
@@ -381,7 +384,7 @@ Module QuoteMSetList (E : OrderedType) (Import M : MSetList_MakeSig E).
   Module OnlyMSetListDefinitions.
     #[export] Instance quote_Ok {qE_compare : quotation_of E.compare} {qE_t : quotation_of E.t} {v} : ground_quotable (Raw.Ok v) := ltac:(cbv [Raw.Ok]; exact _).
 
-    #[export] Instance quote_t_ {qE_t : quotation_of E.t} {qE_compare : quotation_of E.compare} {quoteE_t : ground_quotable E.t} : ground_quotable t_ := ltac:(destruct 1; exact _).
+    #[export] Instance quote_t_ {qE_t : quotation_of E.t} {qE_compare : quotation_of E.compare} {quoteE_t : ground_quotable E.t} {qM_Mkt : quotation_of M.Mkt} : ground_quotable t_ := ltac:(destruct 1; exact _).
   End OnlyMSetListDefinitions.
 
   Module Definitions := QM.Definitions <+ OnlyMSetListDefinitions.
