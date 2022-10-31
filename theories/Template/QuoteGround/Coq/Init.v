@@ -86,7 +86,7 @@ End Number.
 
 (* TODO: Move *)
 Local Notation iffT A B := (prod (A -> B) (B -> A)).
-Definition quote_of_iffT {A B} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : iffT A B) {qH : quotation_of H} : ground_quotable B.
+Definition ground_quotable_of_iffT {A B} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : iffT A B) {qH : quotation_of H} : ground_quotable B.
 Proof.
   intro b.
   change (@quotation_of B (fst H (snd H b))).
@@ -95,7 +95,7 @@ Defined.
 (* Transparent versions *)
 Definition proj1 {A B} (x : A /\ B) : A := ltac:(apply x).
 Definition proj2 {A B} (x : A /\ B) : B := ltac:(apply x).
-Definition quote_of_iff {A B : Prop} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : iff A B) {qH : quotation_of H} : ground_quotable B.
+Definition ground_quotable_of_iff {A B : Prop} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : iff A B) {qH : quotation_of H} : ground_quotable B.
 Proof.
   intro b.
   change (@quotation_of B (proj1 H (proj2 H b))).

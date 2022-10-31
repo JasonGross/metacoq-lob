@@ -163,13 +163,13 @@ Definition proj1 {A B} (x : A /\ B) : A := let (a, b) := x in a.
 Definition proj2 {A B} (x : A /\ B) : B := let (a, b) := x in b.
 (* TODO: Move *)
 Local Notation iffT A B := ((A -> B) × (B -> A)).
-Definition quote_of_iff {A B : Prop} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : A <-> B) {qH : quotation_of H} : ground_quotable B.
+Definition ground_quotable_of_iff {A B : Prop} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : A <-> B) {qH : quotation_of H} : ground_quotable B.
 Proof.
   intro b.
   change (@quotation_of B (proj1 H (proj2 H b))).
   exact _.
 Defined.
-Definition quote_of_iffT {A B} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : iffT A B) {qH : quotation_of H} : ground_quotable B.
+Definition ground_quotable_of_iffT {A B} {quoteA : ground_quotable A} {qA : quotation_of A} {qB : quotation_of B} (H : iffT A B) {qH : quotation_of H} : ground_quotable B.
 Proof.
   intro b.
   change (@quotation_of B (fst H (snd H b))).
@@ -184,9 +184,9 @@ Proof.
   split; destruct v; intuition congruence.
 Defined.
 #[export] Instance quote_forall_eq_some {A v P} {q : ground_quotable (match v return Type with Some v => P v | None => True end)} {qv : quotation_of v} {qA : quotation_of A} {qP : quotation_of P} : ground_quotable (forall a : A, v = Some a -> P a)
-  := quote_of_iffT iff_forall_eq_some.
+  := ground_quotable_of_iffT iff_forall_eq_some.
 #[export] Instance quote_forall_neq_nil {A v P} {q : ground_quotable (match v return Type with nil => True | _ => P end)} {qv : quotation_of v} {qA : quotation_of A} {qP : quotation_of P} : ground_quotable (v <> @nil A -> P)
-  := quote_of_iffT iff_forall_neq_nil.
+  := ground_quotable_of_iffT iff_forall_neq_nil.
 #[export] Instance quote_is_true_or_l {b} {P : Prop} {qP : quotation_of P} {quoteP : ground_quotable P} : ground_quotable (is_true b \/ P).
 Proof.
   destruct b; intro H; [ | assert (H' : P) by now destruct H ].

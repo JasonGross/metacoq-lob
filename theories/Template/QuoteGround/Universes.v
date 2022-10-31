@@ -148,9 +148,9 @@ Export QuoteUniverses2.Variance.Instances.
 #[export] Instance quote_universes_decl : ground_quotable universes_decl := ltac:(destruct 1; exact _).
 
 #[export] Instance quote_satisfies0 {v s} {qv : quotation_of v} : ground_quotable (@satisfies0 v s)
-  := quote_of_iff (iff_sym (@uGraph.gc_of_constraint_spec config.default_checker_flags v s)).
+  := ground_quotable_of_iff (iff_sym (@uGraph.gc_of_constraint_spec config.default_checker_flags v s)).
 #[export] Instance quote_satisfies {v s} {qv : quotation_of v} : ground_quotable (@satisfies v s)
-  := quote_of_iff (iff_sym (@uGraph.gc_of_constraints_spec config.default_checker_flags v s)).
+  := ground_quotable_of_iff (iff_sym (@uGraph.gc_of_constraints_spec config.default_checker_flags v s)).
 
 #[export] Instance quote_consistent {ctrs} : ground_quotable (@consistent ctrs)
   := ground_quotable_of_dec (@consistent_dec ctrs).

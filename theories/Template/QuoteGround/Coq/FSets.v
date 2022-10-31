@@ -26,15 +26,15 @@ Module QuoteWSfun (E : DecidableType) (Import W : WSfun E).
     #[export] Instance qEquiv : quotation_of (@Equiv) := ltac:(cbv -[quotation_of]; exact _).
 
     #[export] Instance quote_MapsTo {x y z} {qx : quotation_of x} {qy : quotation_of y} {qz : quotation_of z} : ground_quotable (@MapsTo elt x y z)
-        := quote_of_iff (iff_sym (@find_mapsto_iff _ _ _ _)).
+        := ground_quotable_of_iff (iff_sym (@find_mapsto_iff _ _ _ _)).
 
     #[export] Instance quote_In {k m} {qk : quotation_of k} {qm : quotation_of m} : ground_quotable (@In elt k m)
-      := quote_of_iff (iff_sym (@mem_in_iff _ _ _)).
+      := ground_quotable_of_iff (iff_sym (@mem_in_iff _ _ _)).
     #[export] Instance quote_neg_In {k m} {qk : quotation_of k} {qm : quotation_of m} : ground_quotable (~@In elt k m)
       := quote_neg_of_iff (iff_sym (@mem_in_iff _ _ _)).
 
     #[export] Instance quote_Empty {m} {qm : quotation_of m} : ground_quotable (@Empty elt m)
-      := quote_of_iff (iff_sym (@is_empty_iff _ _)).
+      := ground_quotable_of_iff (iff_sym (@is_empty_iff _ _)).
     #[export] Instance quote_neg_Empty {m} {qm : quotation_of m} : ground_quotable (~@Empty elt m)
       := quote_neg_of_iff (iff_sym (@is_empty_iff _ _)).
 
@@ -85,9 +85,9 @@ Module QuoteWSfun (E : DecidableType) (Import W : WSfun E).
       all: try solve [ break_innermost_match; break_innermost_match_hyps; try congruence; eauto ].
     Qed.
 
-    #[export] Instance quote_Equiv {eq_elt m m'} {qm : quotation_of m} {qm' : quotation_of m'} {quote_elt : ground_quotable elt} {quote_key : ground_quotable key} {qeq_elt : quotation_of eq_elt} {quote_eq_elt : forall x y, ground_quotable (eq_elt x y:Prop)} : ground_quotable (@Equiv elt eq_elt m m') := quote_of_iff Equiv_alt_iff.
+    #[export] Instance quote_Equiv {eq_elt m m'} {qm : quotation_of m} {qm' : quotation_of m'} {quote_elt : ground_quotable elt} {quote_key : ground_quotable key} {qeq_elt : quotation_of eq_elt} {quote_eq_elt : forall x y, ground_quotable (eq_elt x y:Prop)} : ground_quotable (@Equiv elt eq_elt m m') := ground_quotable_of_iff Equiv_alt_iff.
 
-    #[export] Instance quote_Equal {m m'} {qm : quotation_of m} {qm' : quotation_of m'} {quote_elt : ground_quotable elt} {quote_key : ground_quotable key} : ground_quotable (@Equal elt m m') := quote_of_iff (iff_sym (@Equal_Equiv elt m m')).
+    #[export] Instance quote_Equal {m m'} {qm : quotation_of m} {qm' : quotation_of m'} {quote_elt : ground_quotable elt} {quote_key : ground_quotable key} : ground_quotable (@Equal elt m m') := ground_quotable_of_iff (iff_sym (@Equal_Equiv elt m m')).
 
     #[export] Instance quote_Equivb {cmp m m'} {qm : quotation_of m} {qm' : quotation_of m'} {quote_elt : ground_quotable elt} {quote_key : ground_quotable key} {qcmp : quotation_of cmp} : ground_quotable (@Equivb elt cmp m m') := _.
   End with_quote.

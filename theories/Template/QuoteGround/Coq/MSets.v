@@ -27,12 +27,12 @@ Module QuoteWSetsOn (E : DecidableType) (Import W : WSetsOn E).
         := ground_quotable_of_dec (eq_dec x y).
       #[export] Instance quote_neg_Equal {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Equal x y)
         := ground_quotable_neg_of_dec (eq_dec x y).
-      #[export] Instance quote_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (Subset x y) := quote_of_iff (@subset_spec x y).
+      #[export] Instance quote_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (Subset x y) := ground_quotable_of_iff (@subset_spec x y).
       #[export] Instance quote_neg_Subset {x y} {qx : quotation_of x} {qy : quotation_of y} : ground_quotable (~Subset x y) := quote_neg_of_iff (@subset_spec x y).
-      #[export] Instance quote_Empty {x} {qx : quotation_of x} : ground_quotable (Empty x) := quote_of_iff (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x)).
+      #[export] Instance quote_Empty {x} {qx : quotation_of x} : ground_quotable (Empty x) := ground_quotable_of_iff (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x)).
       #[export] Instance quote_neg_Empty {x} {qx : quotation_of x} : ground_quotable (~Empty x) := quote_neg_of_iff (conj (@WProperties.empty_is_empty_2 x) (@WProperties.empty_is_empty_1 x)).
       #[export] Instance quote_Add {x s s'} {qx : quotation_of x} {qs : quotation_of s} {qs' : quotation_of s'} : ground_quotable (WProperties.Add x s s')
-        := quote_of_iff (iff_sym (WProperties.Add_Equal _ _ _)).
+        := ground_quotable_of_iff (iff_sym (WProperties.Add_Equal _ _ _)).
       #[export] Instance quote_neg_Add {x s s'} {qx : quotation_of x} {qs : quotation_of s} {qs' : quotation_of s'} : ground_quotable (~WProperties.Add x s s')
         := quote_neg_of_iff (iff_sym (WProperties.Add_Equal _ _ _)).
 
@@ -53,13 +53,13 @@ Module QuoteWSetsOn (E : DecidableType) (Import W : WSetsOn E).
       #[export] Instance qFor_all : quotation_of For_all := ltac:(cbv [For_all]; exact _).
       #[export] Instance qExists : quotation_of Exists := ltac:(cbv [Exists]; exact _).
       #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} {qs : quotation_of s} : ground_quotable (For_all P s)
-        := quote_of_iff For_all_alt_iff.
+        := ground_quotable_of_iff For_all_alt_iff.
       Lemma For_all_forall_iff {P s} : (For_all P s) <-> (forall v, In v s -> P v).
       Proof using Type. reflexivity. Qed.
       Lemma For_all_forall2_iff {P s} : (For_all (fun v1 => For_all (P v1) s) s) <-> (forall v1 v2, In v1 s -> In v2 s -> P v1 v2).
       Proof using Type. cbv [For_all]; intuition eauto. Qed.
       #[export] Instance quote_forall2_In {P s} {qP : quotation_of P} {qs : quotation_of s} {quote_For_all : ground_quotable (For_all (fun v1 => For_all (P v1) s) s)} : ground_quotable (forall v1 v2, In v1 s -> In v2 s -> P v1 v2)
-        := quote_of_iff For_all_forall2_iff.
+        := ground_quotable_of_iff For_all_forall2_iff.
 
       Definition Exists_alt (P : elt -> Prop) (s : t) : Prop
         := List.Exists P (elements s).
@@ -129,9 +129,9 @@ Module QuoteSetsOn (E : OrderedType) (Import M : SetsOn E).
       split; intros H y H'; generalize (H y H'); destruct ME.lt_dec; try reflexivity; eauto; congruence.
     Qed.
     #[export] Instance quote_Above {x s} {qx : quotation_of x} {qs : quotation_of s} : ground_quotable (Above x s)
-      := quote_of_iff (above_spec x s).
+      := ground_quotable_of_iff (above_spec x s).
     #[export] Instance quote_Below {x s} {qx : quotation_of x} {qs : quotation_of s} : ground_quotable (Below x s)
-      := quote_of_iff (below_spec x s).
+      := ground_quotable_of_iff (below_spec x s).
   End OnlyOrdDefinitions.
 
   Module OrdDefinitions.
