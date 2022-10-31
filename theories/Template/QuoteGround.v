@@ -575,16 +575,6 @@ Definition wf_universe_pb Σ s : wf_universe Σ s -> wf_universeb Σ s = true :=
 
 #[export] Instance quote_wf_universe {Σ s} : ground_quotable (@wf_universe Σ s) := ground_quotable_of_bp (@wf_universe_bp Σ s) (@wf_universe_pb Σ s).
 
-Definition consistent_dec ctrs : {@consistent ctrs} + {~@consistent ctrs}.
-Proof.
-  destruct (@gc_consistent_iff config.default_checker_flags ctrs) as [f1 f2].
-  cbv [on_Some] in *; destruct @gc_of_constraints.
-Admitted.
-Definition consistent_b ctrs : bool := b_of_dec (@consistent_dec ctrs).
-Definition consistent_bp ctrs : @consistent_b ctrs = true -> @consistent ctrs := bp_of_dec.
-Definition consistent_pb ctrs : @consistent ctrs -> @consistent_b ctrs = true := pb_of_dec.
-#[export] Instance quote_consistent {ctrs} : ground_quotable (@consistent ctrs)
-  := ground_quotable_of_bp (@consistent_bp ctrs) (@consistent_pb ctrs).
 
 Definition valid_constraints_dec cf ϕ cstrs : {@valid_constraints cf ϕ cstrs} + {~@valid_constraints cf ϕ cstrs}.
 Proof.

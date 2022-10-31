@@ -1,3 +1,4 @@
+From MetaCoq.Lob.Template.Decidable Require Import Universes.
 From MetaCoq.Lob.Template.QuoteGround Require Export Coq.Init Coq.MSets utils.MCOption utils.bytestring BasicAst (*utils  config*).
 From MetaCoq.Template Require Import Universes.
 (*
@@ -151,149 +152,38 @@ Export QuoteUniverses2.Variance.Instances.
 #[export] Instance quote_satisfies {v s} {qv : quotation_of v} : ground_quotable (@satisfies v s)
   := quote_of_iff (iff_sym (@uGraph.gc_of_constraints_spec config.default_checker_flags v s)).
 
-(* XXX FIXME *)
-Definition consistent_dec ctrs : {@consistent ctrs} + {~@consistent ctrs}.
-Proof.
-  destruct (@uGraph.gc_consistent_iff config.default_checker_flags ctrs) as [f1 f2].
-  cbv [MCOption.on_Some] in *; destruct @uGraph.gc_of_constraints.
-Admitted.
 #[export] Instance quote_consistent {ctrs} : ground_quotable (@consistent ctrs)
   := ground_quotable_of_dec (@consistent_dec ctrs).
-(*
-refine (quote_of_iff (iff_sym (@uGraph.gc_consistent_iff config.default_checker_flags s))).
- *)
+#[export] Instance quote_consistent_extension_on {cs cstr} : ground_quotable (@consistent_extension_on cs cstr)
+  := ground_quotable_of_dec (@consistent_extension_on_dec cs cstr).
+#[export] Instance quote_leq0_levelalg_n {n ϕ u u'} : ground_quotable (@leq0_levelalg_n n ϕ u u')
+  := ground_quotable_of_dec (@leq0_levelalg_n_dec n ϕ u u').
+#[export] Instance quote_leq_levelalg_n {cf n ϕ u u'} : ground_quotable (@leq_levelalg_n cf n ϕ u u') := ltac:(cbv [leq_levelalg_n]; exact _).
+#[export] Instance quote_leq_universe_n_ {cf CS leq_levelalg_n n ϕ s s'} {quote_leq_levelalg_n : forall u u', ground_quotable (leq_levelalg_n n ϕ u u':Prop)} : ground_quotable (@leq_universe_n_ cf CS leq_levelalg_n n ϕ s s') := ltac:(cbv [leq_universe_n_]; exact _).
+#[export] Instance quote_leq_universe_n {cf n ϕ s s'} : ground_quotable (@leq_universe_n cf n ϕ s s') := _.
+#[export] Instance quote_eq0_levelalg {ϕ u u'} : ground_quotable (@eq0_levelalg ϕ u u')
+  := ground_quotable_of_dec (@eq0_levelalg_dec ϕ u u').
 
-Search consistent_extension_on.
+#[export] Instance quote_eq_levelalg : ground_quotable (@eq_levelalg). φ (u u' : LevelAlgExpr.t) :=
 
-Section Univ.
-  Context {cf: checker_flags}.
+#[export] Instance quote_eq_universe_ : ground_quotable (@eq_universe_). {CS} eq_levelalg (φ: CS) s s' :=
 
+#[export] Instance quote_eq_universe : ground_quotable (@eq_universe). := eq_universe_ eq_levelalg.
 
-  Definition consistent ctrs := exists v, satisfies v ctrs.
+#[export] Instance quote_lt_levelalg : ground_quotable (@lt_levelalg). := leq_levelalg_n 1.
+#[export] Instance quote_leq_levelalg : ground_quotable (@leq_levelalg). := leq_levelalg_n 0.
+#[export] Instance quote_lt_universe : ground_quotable (@lt_universe). := leq_universe_n 1.
+#[export] Instance quote_leq_universe : ground_quotable (@leq_universe). := leq_universe_n 0.
 
-  Definition consistent_extension_on cs cstr :=
-    forall v, satisfies v (ContextSet.constraints cs) -> exists v',
-        satisfies v' cstr /\
-          LevelSet.For_all (fun l => val v l = val v' l) (ContextSet.levels cs).
+#[export] Instance quote_compare_universe : ground_quotable (@compare_universe). (pb : conv_pb) :=
 
+#[export] Instance quote_valid_constraints0 : ground_quotable (@valid_constraints0). φ ctrs
 
-  Definition leq0_levelalg_n n φ (u u' : LevelAlgExpr.t) :=
-    forall v, satisfies v φ -> (Z.of_nat (val v u) <= Z.of_nat (val v u') - n)%Z.
-
-  Definition leq_levelalg_n n φ (u u' : LevelAlgExpr.t) :=
-    if check_univs then leq0_levelalg_n n φ u u' else True.
-
-  Definition leq_universe_n_ {CS} leq_levelalg_n n (φ: CS) s s' :=
-    match s, s' with
-    | Universe.lProp,   Universe.lProp
-    | Universe.lSProp,  Universe.lSProp => (n = 0)%Z
-    | Universe.lType u, Universe.lType u' => leq_levelalg_n n φ u u'
-    | Universe.lProp,   Universe.lType u => prop_sub_type
-    | _, _ => False
-    end.
-
-  Definition leq_universe_n := leq_universe_n_ leq_levelalg_n.
-
-  Definition leqb_universe_n_ leqb_levelalg_n b s s' :=
-    match s, s' with
-    | Universe.lProp,   Universe.lProp
-    | Universe.lSProp,  Universe.lSProp => negb b
-    | Universe.lType u, Universe.lType u' => leqb_levelalg_n b u u'
-    | Universe.lProp,   Universe.lType u => prop_sub_type
-    | _, _ => false
-    end.
-
-  Definition eq0_levelalg φ (u u' : LevelAlgExpr.t) :=
-    forall v, satisfies v φ -> val v u = val v u'.
-
-  Definition eq_levelalg φ (u u' : LevelAlgExpr.t) :=
-    if check_univs then eq0_levelalg φ u u' else True.
-
-  Definition eq_universe_ {CS} eq_levelalg (φ: CS) s s' :=
-    match s, s' with
-    | Universe.lProp,   Universe.lProp
-    | Universe.lSProp,  Universe.lSProp => True
-    | Universe.lType u, Universe.lType u' => eq_levelalg φ u u'
-    | _, _ => False
-    end.
-
-  Definition eq_universe := eq_universe_ eq_levelalg.
-
-  Definition lt_levelalg := leq_levelalg_n 1.
-  Definition leq_levelalg := leq_levelalg_n 0.
-  Definition lt_universe := leq_universe_n 1.
-  Definition leq_universe := leq_universe_n 0.
-
-  Definition compare_universe (pb : conv_pb) :=
-    match pb with
-    | Conv => eq_universe
-    | Cumul => leq_universe
-    end.
-
-  Lemma leq_levelalg_leq_levelalg_n (φ : ConstraintSet.t) u u' :
-    leq_levelalg φ u u' <-> leq_levelalg_n 0 φ u u'.
-  Proof using Type. intros. reflexivity. Qed.
-
-  Lemma leq_universe_leq_universe_n (φ : ConstraintSet.t) u u' :
-    leq_universe φ u u' <-> leq_universe_n 0 φ u u'.
-  Proof using Type. intros. reflexivity. Qed.
-
-  (* ctrs are "enforced" by φ *)
-
-  Definition valid_constraints0 φ ctrs
-    := forall v, satisfies v φ -> satisfies v ctrs.
-
-  Definition valid_constraints φ ctrs
-    := if check_univs then valid_constraints0 φ ctrs else True.
-
-  Lemma valid_subset φ φ' ctrs
-    : ConstraintSet.Subset φ φ' -> valid_constraints φ ctrs
-      ->  valid_constraints φ' ctrs.
-  Proof using Type.
-    unfold valid_constraints.
-    destruct check_univs; [|trivial].
-    intros Hφ H v Hv. apply H.
-    intros ctr Hc. apply Hv. now apply Hφ.
-  Qed.
-
-  Lemma switch_minus (x y z : Z) : (x <= y - z <-> x + z <= y)%Z.
-  Proof using Type. split; lia. Qed.
-
-  (* Lemma llt_lt n m : (n < m)%u -> (n < m)%Z.
-  Proof. lled; lia. Qed.
-
-  Lemma lle_le n m : (n <= m)%u -> (n <= m)%Z.
-  Proof. lled; lia. Qed.
-
-  Lemma lt_llt n m : prop_sub_type -> (n < m)%Z -> (n < m)%u.
-  Proof. unfold llt. now intros ->. Qed.
-
-  Lemma le_lle n m : prop_sub_type -> (n <= m)%Z -> (n <= m)%u.
-  Proof. lled; [lia|discriminate]. Qed.
-
-  Lemma lt_llt' n m : (0 <= n)%Z -> (n < m)%Z -> (n < m)%u.
-  Proof. lled; lia. Qed.
-
-  Lemma le_lle' n m : (0 <= n)%Z -> (n <= m)%Z -> (n <= m)%u.
-  Proof. lled; lia. Qed. *)
+#[export] Instance quote_valid_constraints : ground_quotable (@valid_constraints). φ ctrs
 
 
-
-  Definition is_lSet φ s := eq_universe φ s Universe.type0.
-    (* Unfolded definition :
-    match s with
-    | Universe.lType u =>
-      if check_univs then forall v, satisfies v φ -> val v u = 0 else True
-    | _ => False
-    end. *)
-
-  Definition is_allowed_elimination φ allowed : Universe.t -> Prop :=
-    match allowed with
-    | IntoSProp => Universe.is_sprop
-    | IntoPropSProp => is_propositional
-    | IntoSetPropSProp => fun s => is_propositional s \/ is_lSet φ s
-    | IntoAny => fun s => True
-    end.
+#[export] Instance quote_is_lSet : ground_quotable (@is_lSet). φ s := eq_universe φ s Universe.type0.
+#[export] Instance quote_is_allowed_elimination : ground_quotable (@is_allowed_elimination). φ allowed : Universe.t -> Prop :=
 
 End Univ.
 
