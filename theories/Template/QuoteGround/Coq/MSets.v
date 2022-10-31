@@ -153,9 +153,9 @@ Module QuoteSetsOn (E : OrderedType) (Import M : SetsOn E).
   End OrdInstances.
 End QuoteSetsOn.
 
-Module Type MSetAVL_MakeT (T : OrderedType). Include MSetAVL.Make T. End MSetAVL_MakeT.
+Module Type MSetAVL_MakeSig (T : OrderedType). Include MSetAVL.Make T. End MSetAVL_MakeSig.
 
-Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeT T).
+Module QuoteMSetAVL (T : OrderedType) (M : MSetAVL_MakeSig T).
   Module Import QM := QuoteSetsOn T M.
 
   Module Definitions.
@@ -373,9 +373,9 @@ Module QuoteSetsOnWithLeibniz (E : OrderedTypeWithLeibniz) (Import M : SetsOn E)
   End Instances.
 End QuoteSetsOnWithLeibniz.
 
-Module Type MSetList_MakeT (T : OrderedType). Include MSetList.Make T. End MSetList_MakeT.
+Module Type MSetList_MakeSig (T : OrderedType). Include MSetList.Make T. End MSetList_MakeSig.
 
-Module QuoteMSetList (E : OrderedType) (Import M : MSetList_MakeT E).
+Module QuoteMSetList (E : OrderedType) (Import M : MSetList_MakeSig E).
   Module Import QM := QuoteSetsOn E M.
 
   Module OnlyMSetListDefinitions.
@@ -397,7 +397,7 @@ Module QuoteMSetList (E : OrderedType) (Import M : MSetList_MakeT E).
   Module Export Instances := QM.Instances <+ OnlyMSetListInstances.
 End QuoteMSetList.
 
-Module QuoteMSetListWithLeibniz (E : OrderedTypeWithLeibniz) (Import M : MSetList_MakeT E).
+Module QuoteMSetListWithLeibniz (E : OrderedTypeWithLeibniz) (Import M : MSetList_MakeSig E).
   Module QM := QuoteSetsOnWithLeibniz E M.
   Module QM' := QuoteMSetList E M.
 

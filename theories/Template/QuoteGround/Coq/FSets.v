@@ -112,9 +112,9 @@ Module QuoteWSfun (E : DecidableType) (Import W : WSfun E).
 End QuoteWSfun.
 
 
-Module Type FMapAVL_MakeT (T : OrderedType). Include FMapAVL.Make T. End FMapAVL_MakeT.
+Module Type FMapAVL_MakeSig (T : OrderedType). Include FMapAVL.Make T. End FMapAVL_MakeSig.
 
-Module QuoteFMapAVL (T : OrderedType) (M : FMapAVL_MakeT T).
+Module QuoteFMapAVL (T : OrderedType) (M : FMapAVL_MakeSig T).
   Module Import QM := QuoteWSfun T M.
 
   Scheme Induction for M.Raw.tree Sort Type.

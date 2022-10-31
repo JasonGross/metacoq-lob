@@ -14,11 +14,11 @@ Module Nbar.
 End Nbar.
 Export Nbar.Instances.
 
-Module Type WeightedGraphT (V : UsualOrderedType) (VSet : MSetInterface.S with Module E := V).
+Module Type WeightedGraphSig (V : UsualOrderedType) (VSet : MSetInterface.S with Module E := V).
   Include WeightedGraph V VSet.
-End WeightedGraphT.
+End WeightedGraphSig.
 
-Module QuoteWeightedGraph (V : UsualOrderedType) (VSet : MSetInterface.S with Module E := V) (Import W : WeightedGraphT V VSet).
+Module QuoteWeightedGraph (V : UsualOrderedType) (VSet : MSetInterface.S with Module E := V) (Import W : WeightedGraphSig V VSet).
   Module Import QuoteVSet := QuoteUsualSetsOn V VSet.
   Module Import QuoteEdgeSet := QuoteMSetAVL Edge EdgeSet.
 
