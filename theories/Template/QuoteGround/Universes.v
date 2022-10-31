@@ -1,13 +1,7 @@
 From MetaCoq.Lob.Template.Decidable Require Import Universes.
-From MetaCoq.Lob.Template.QuoteGround Require Export Coq.Init Coq.MSets utils.MCOption utils.bytestring BasicAst (*utils  config*).
+From MetaCoq.Lob.Template.QuoteGround Require Export Coq.Init Coq.MSets utils.MCOption utils.bytestring BasicAst config.
 From MetaCoq.Template Require Import Universes.
-(*
 
-From Coq Require Import MSetList MSetAVL MSetFacts MSetProperties MSetDecide.
-From Equations Require Import Equations.
-From MetaCoq.Template Require Import utils BasicAst config.
-Require Import ssreflect.
- *)
 (* Grrr, [valuation]s cause so much trouble, because they're not quotable *)
 (*
 Record valuation :=
@@ -163,31 +157,16 @@ Export QuoteUniverses2.Variance.Instances.
 #[export] Instance quote_leq_universe_n {cf n ϕ s s'} : ground_quotable (@leq_universe_n cf n ϕ s s') := _.
 #[export] Instance quote_eq0_levelalg {ϕ u u'} : ground_quotable (@eq0_levelalg ϕ u u')
   := ground_quotable_of_dec (@eq0_levelalg_dec ϕ u u').
+#[export] Instance quote_eq_levelalg {cf ϕ u u'} : ground_quotable (@eq_levelalg cf ϕ u u') := ltac:(cbv [eq_levelalg]; exact _).
+#[export] Instance quote_eq_universe_ {CS eq_levelalg ϕ s s'} {quote_eq_levelalg : forall u u', ground_quotable (eq_levelalg ϕ u u':Prop)} : ground_quotable (@eq_universe_ CS eq_levelalg ϕ s s') := ltac:(cbv [eq_universe_]; exact _).
+#[export] Instance quote_eq_universe {cf ϕ s s'} : ground_quotable (@eq_universe cf ϕ s s') := _.
+#[export] Instance quote_compare_universe {cf pb ϕ u u'} : ground_quotable (@compare_universe cf pb ϕ u u') := ltac:(destruct pb; exact _).
+#[export] Instance quote_valid_constraints0 {ϕ ctrs} : ground_quotable (@valid_constraints0 ϕ ctrs)
+  := ground_quotable_of_dec (@valid_constraints0_dec ϕ ctrs).
+#[export] Instance quote_valid_constraints {cf ϕ ctrs} : ground_quotable (@valid_constraints cf ϕ ctrs)
+  := ground_quotable_of_dec (@valid_constraints_dec cf ϕ ctrs).
+#[export] Instance quote_is_lSet {cf φ s} : ground_quotable (@is_lSet cf φ s) := _.
+#[export] Instance quote_is_allowed_elimination {cf ϕ allowed u} : ground_quotable (@is_allowed_elimination cf ϕ allowed u)
+  := ground_quotable_of_dec (@is_allowed_elimination_dec cf ϕ allowed u).
 
-#[export] Instance quote_eq_levelalg : ground_quotable (@eq_levelalg). φ (u u' : LevelAlgExpr.t) :=
-
-#[export] Instance quote_eq_universe_ : ground_quotable (@eq_universe_). {CS} eq_levelalg (φ: CS) s s' :=
-
-#[export] Instance quote_eq_universe : ground_quotable (@eq_universe). := eq_universe_ eq_levelalg.
-
-#[export] Instance quote_lt_levelalg : ground_quotable (@lt_levelalg). := leq_levelalg_n 1.
-#[export] Instance quote_leq_levelalg : ground_quotable (@leq_levelalg). := leq_levelalg_n 0.
-#[export] Instance quote_lt_universe : ground_quotable (@lt_universe). := leq_universe_n 1.
-#[export] Instance quote_leq_universe : ground_quotable (@leq_universe). := leq_universe_n 0.
-
-#[export] Instance quote_compare_universe : ground_quotable (@compare_universe). (pb : conv_pb) :=
-
-#[export] Instance quote_valid_constraints0 : ground_quotable (@valid_constraints0). φ ctrs
-
-#[export] Instance quote_valid_constraints : ground_quotable (@valid_constraints). φ ctrs
-
-
-#[export] Instance quote_is_lSet : ground_quotable (@is_lSet). φ s := eq_universe φ s Universe.type0.
-#[export] Instance quote_is_allowed_elimination : ground_quotable (@is_allowed_elimination). φ allowed : Universe.t -> Prop :=
-
-End Univ.
-
-Inductive universes_entry :=
-| Monomorphic_entry (ctx : ContextSet.t)
-| Polymorphic_entry (ctx : UContext.t).
-Derive NoConfusion for universes_entry.
+#[export] Instance quote_universes_entry : ground_quotable universes_entry := ltac:(destruct 1; exact _).
