@@ -53,19 +53,6 @@ Definition replace_inductive_kn (t : inductive) (i : term) : option inductive
      | _ => None
      end.
 
-Definition replace_head_ind (t : term) (i : term) : option term
-  := match t with
-     | tInd ind u
-       => option_map (fun ind => tInd ind u) (replace_inductive_kn ind i)
-     | tConstruct ind idx u
-       => option_map (fun ind => tConstruct ind idx u) (replace_inductive_kn ind i)
-     | tProj (mkProjection ind npars arg) t
-       => option_map (fun ind => tProj (mkProjection ind npars arg) t) (replace_inductive_kn ind i)
-     | tCase (mk_case_info ind npar rel) ti discr branches
-       => option_map (fun ind => tCase (mk_case_info ind npar rel) ti discr branches ) (replace_inductive_kn ind i)
-     | _ => None
-     end.
-
 Fixpoint head (t : term) : term
   := match t with
      | tCast t _ _
@@ -74,120 +61,145 @@ Fixpoint head (t : term) : term
      | _ => t
      end.
 
-Definition infer_replace_head_ind {debug : debug_opt} (qt : term) : TemplateMonad (option term).
+Definition infer_replacement_inductive {debug : debug_opt} (qt : term) : TemplateMonad (option inductive).
 Proof.
   simple
-    refine (let try_replace_head_ind qt v :=
+    refine (let try_replace_inductive_kn ind v :=
               (* make sure it's not just a context variable *)
               (qv <- tmQuote v;;
                match qv with
-               | tVar _ => ((if debug then tmPrint ("context variable:", v, "for", qt) else tmReturn tt);; tmReturn None)
-               | _ => tmReturn (replace_head_ind qt v)
+               | tVar _ => ((if debug then tmPrint ("context variable:", v, "for", qt) else ret tt);; ret None)
+               | _ => ret (replace_inductive_kn ind v)
                end) in
             match qt with
+            | tInd ind u
             | tConstruct ind _ u
             | tCase {| ci_ind := ind |} {| puinst := u |} _ _
-              => (ind <- tmUnquote (tInd ind u);;
-                  let '(existT_typed_term _ ind) := ind in
-                  v <- (tmInferInstance None (quotation_of ind));;
+              => (indv <- tmUnquote (tInd ind u);;
+                  let '(existT_typed_term _ indv) := indv in
+                  v <- (tmInferInstance None (quotation_of indv));;
                   match v with
-                  | my_Some v => try_replace_head_ind qt v
-                  | my_None => (if debug then tmPrint (quotation_of ind) else tmReturn tt);; tmReturn None
+                  | my_Some v => try_replace_inductive_kn ind v
+                  | my_None => (if debug then tmPrint (quotation_of indv) else ret tt);; ret None
                   end)
-            | tProj proj t
+            | tProj {| proj_ind := ind |} t
               => (t <- tmUnquote t;;
                   let '(existT_typed_term ty _) := t in
                   ty <- tmEval hnf ty;;
                   ty <- tmQuote ty;;
-                  let ind := head ty in
-                  ind <- tmUnquote ind;;
-                  let '(existT_typed_term _ ind) := ind in
-                  v <- (tmInferInstance None (quotation_of ind));;
+                  let indv := head ty in
+                  indv <- tmUnquote indv;;
+                  let '(existT_typed_term _ indv) := indv in
+                  v <- (tmInferInstance None (quotation_of indv));;
                   match v with
-                  | my_Some v => try_replace_head_ind qt v
-                  | my_None => (if debug then tmPrint (qt, quotation_of ind) else tmReturn tt);; tmReturn None
+                  | my_Some v => try_replace_inductive_kn ind v
+                  | my_None => (if debug then tmPrint (qt, quotation_of ind) else ret tt);; ret None
                   end)
-            | _ => tmReturn None
+            | _ => ret None
             end);
     exact _.
 Defined.
 
-Definition try_infer_replace_head_ind {debug : debug_opt} (qt : term) : TemplateMonad term
-  := if head_term_is_bound qt
-     then (qt' <- infer_replace_head_ind qt;;
-           match qt' with
-           | Some qt => tmReturn qt
-           | None => tmReturn qt
-           end)
-     else tmReturn qt.
-Export bytestring.
 Fixpoint replace_quotation_of' {debug : debug_opt} (do_top_inference : bool) (qt : term) : TemplateMonad term.
 Proof.
   specialize (replace_quotation_of' debug).
   simple
     refine
     (let replace_quotation_of' := replace_quotation_of' true in
-     tmPrint (do_top_inference, qt);;
      let tmTryInferQuotation t
        := (t <- tmUnquote t;;
            let '(existT_typed_term _ t) := t in
            v <- tmInferInstance None (quotation_of t);;
            match v return TemplateMonad (option_instance Ast.term) with
-           | my_Some v => tmReturn (@my_Some _ v)
-           | my_None => (if debug then tmPrint (quotation_of t) else tmReturn tt);; tmReturn (@my_None _)
+           | my_Some v => ret (@my_Some _ v)
+           | my_None => (if debug then tmPrint (quotation_of t) else ret tt);; ret (@my_None _)
            end) in
      let tmInferQuotation t
        := (v <- tmTryInferQuotation t;;
            match v return TemplateMonad Ast.term with
-           | my_Some v => tmReturn v
+           | my_Some v => ret v
            | my_None => tmFail "No typeclass instance"
            end) in
-     let replaced
-       := match qt return TemplateMonad Ast.term with
-          | tRel _
-          | tSort _
-          | tConstruct _ _ _
-          | tInt _
-          | tFloat _
-          | tConst _ _
-          | tInd _ _
-            => ret qt
-          | tVar _
-            => if do_top_inference then tmInferQuotation qt else tmFail "Avoiding loops"
-          | tEvar ev args => args <- monad_map replace_quotation_of' args;; ret (tEvar ev args)
-          | tLambda na T M => T <- replace_quotation_of' T;; M <- replace_quotation_of' M;; ret (tLambda na T M)
-          | tApp u v => u <- replace_quotation_of' u;; v <- monad_map replace_quotation_of' v;; ret (mkApps u v)
-          | tProd na A B => A <- replace_quotation_of' A;; B <- replace_quotation_of' B;; ret (tProd na A B)
-          | tCast c kind ty => c <- replace_quotation_of' c;; ty <- replace_quotation_of' ty;; ret (tCast c kind ty)
-          | tLetIn na b ty b' => b <- replace_quotation_of' b;; ty <- replace_quotation_of' ty;; b' <- replace_quotation_of' b';; ret (tLetIn na b ty b')
-          | tProj p c => replace_quotation_of' c;; ret (tProj p c)
-          | tFix mfix idx =>
-              mfix' <- monad_map (monad_map_def (TM:=TypeInstance) replace_quotation_of' replace_quotation_of') mfix;;
-              ret (tFix mfix' idx)
-          | tCoFix mfix idx =>
-              mfix' <- monad_map (monad_map_def (TM:=TypeInstance) replace_quotation_of' replace_quotation_of') mfix;;
-              ret (tCoFix mfix' idx)
-          | tCase ind p c brs =>
-              p' <- monad_map_predicate (TM:=TypeInstance) ret replace_quotation_of' replace_quotation_of' p;;
-              brs' <- monad_map_branches (TM:=TypeInstance) replace_quotation_of' brs;;
-              c <- replace_quotation_of' c;;
-              ret (tCase ind p' c brs')
-          end in
-     if head_term_is_bound qt
-     then
-       v <- (if do_top_inference then tmTryInferQuotation qt else tmReturn (@my_None _));;
-       match v with
-       | my_Some v => tmReturn v
-       | my_None
-         => qt' <- replaced;;
-            qt' <- infer_replace_head_ind qt';;
-            match qt' with
-            | Some v => tmReturn v
-            | None => tmFail "No typeclass instance nor replacement"
-            end
-       end
-     else
-       replaced);
+     let tmMaybeInferQuotation 'tt :=
+       if do_top_inference then tmInferQuotation qt else tmFail "Avoiding loops" in
+     match qt return TemplateMonad Ast.term with
+     | tRel _
+     | tSort _
+     | tInt _
+     | tFloat _
+     | tConst _ _
+       => if head_term_is_bound qt
+          then tmMaybeInferQuotation tt
+          else ret qt
+     | tConstruct ind idx u
+       => if head_term_is_bound qt
+          then (ind <- infer_replacement_inductive qt;;
+                match ind with
+                | Some ind => ret (tConstruct ind idx u)
+                | None => tmMaybeInferQuotation tt
+                end)
+          else ret qt
+     | tInd ind u
+       => if head_term_is_bound qt
+          then if do_top_inference
+               then (ind <- infer_replacement_inductive qt;;
+                     match ind with
+                     | Some ind => ret (tInd ind u)
+                     | None => tmMaybeInferQuotation tt
+                     end)
+               else tmFail "Avoiding ind loops"
+          else ret qt
+     | tVar _
+       => tmMaybeInferQuotation tt
+     | tEvar ev args => args <- monad_map replace_quotation_of' args;; ret (tEvar ev args)
+     | tLambda na T M => T <- replace_quotation_of' T;; M <- replace_quotation_of' M;; ret (tLambda na T M)
+     | tApp u v => u <- replace_quotation_of' u;; v <- monad_map replace_quotation_of' v;; ret (mkApps u v)
+     | tProd na A B => A <- replace_quotation_of' A;; B <- replace_quotation_of' B;; ret (tProd na A B)
+     | tCast c kind ty => c <- replace_quotation_of' c;; ty <- replace_quotation_of' ty;; ret (tCast c kind ty)
+     | tLetIn na b ty b' => b <- replace_quotation_of' b;; ty <- replace_quotation_of' ty;; b' <- replace_quotation_of' b';; ret (tLetIn na b ty b')
+     | tProj p c
+       => res <- (if head_term_is_bound qt
+                  then (ind <- infer_replacement_inductive qt;;
+                        match ind with
+                        | Some ind
+                          => let p := {| proj_ind := ind ; proj_npars := p.(proj_npars) ; proj_arg := p.(proj_arg) |} in
+                             ret (inr p)
+                        | None
+                          => res <- tmMaybeInferQuotation tt;;
+                             ret (inl res)
+                        end)
+                  else ret (inr p));;
+          match res with
+          | inl res => ret res
+          | inr p => c <- replace_quotation_of' c;;
+                     ret (tProj p c)
+          end
+     | tFix mfix idx =>
+         mfix' <- monad_map (monad_map_def (TM:=TypeInstance) replace_quotation_of' replace_quotation_of') mfix;;
+         ret (tFix mfix' idx)
+     | tCoFix mfix idx =>
+         mfix' <- monad_map (monad_map_def (TM:=TypeInstance) replace_quotation_of' replace_quotation_of') mfix;;
+         ret (tCoFix mfix' idx)
+     | tCase ci p c brs
+       => res <- (if head_term_is_bound qt
+                  then (ind <- infer_replacement_inductive qt;;
+                        match ind with
+                        | Some ind
+                          => ret (inr {| ci_ind := ind ; ci_npar := ci.(ci_npar) ; ci_relevance := ci.(ci_relevance) |})
+                        | None
+                          => res <- tmMaybeInferQuotation tt;;
+                             ret (inl res)
+                        end)
+                  else ret (inr ci));;
+          match res with
+          | inl res => ret res
+          | inr ci
+            => p' <- monad_map_predicate (TM:=TypeInstance) ret replace_quotation_of' replace_quotation_of' p;;
+               brs' <- monad_map_branches (TM:=TypeInstance) replace_quotation_of' brs;;
+               c <- replace_quotation_of' c;;
+               ret (tCase ci p' c brs')
+          end
+     end);
     try exact _.
 Defined.
 
@@ -206,8 +218,8 @@ Proof.
            let '(existT_typed_term _ t) := t in
            v <- tmInferInstance None (quotation_of t);;
            match v with
-           | my_Some v => tmReturn v
-           | my_None => (if debug then tmPrint (quotation_of t) else tmReturn tt);; tmFail "No typeclass instance"
+           | my_Some v => ret v
+           | my_None => (if debug then tmPrint (quotation_of t) else ret tt);; tmFail "No typeclass instance"
            end) in
      if head_term_is_bound qt
      then tmFail "bound argument is not ground"
@@ -219,20 +231,20 @@ Proof.
        | tInt _
        | tFloat _
        | tInd _ _
-         => tmReturn qt
+         => ret qt
        | tCast t kind v
          => tmInferQuotation t
        | tApp f args
          => qf <- tmInferQuotation f;;
             qargs <- list_rect
-                       (fun _ => _)
-                       (tmReturn [])
+                       (fun _ => TemplateMonad (list _))
+                       (ret [])
                        (fun arg args qargs
                         => qarg <- tmInferQuotation arg;;
                            qargs <- qargs;;
-                           tmReturn (qarg :: qargs))
+                           ret (qarg :: qargs))
                        args;;
-            tmReturn (tApp qf qargs)
+            ret (tApp qf qargs)
        | tProj proj t => tmFail "Proj is not reduced"
        | tRel n => tmFail "Rel is not ground"
        | tVar id => tmFail "Var is not ground"
