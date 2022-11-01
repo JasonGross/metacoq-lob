@@ -12,6 +12,7 @@ theories/Template/QuoteGround/Coq/Bool.v
 theories/Template/QuoteGround/Coq/FSets.v
 theories/Template/QuoteGround/Coq/Floats.v
 theories/Template/QuoteGround/Coq/Init.v
+theories/Template/QuoteGround/Coq/Init/Typing.v
 theories/Template/QuoteGround/Coq/Lists.v
 theories/Template/QuoteGround/Coq/MSets.v
 theories/Template/QuoteGround/Coq/Misc.v
@@ -51,9 +52,11 @@ theories/Template/QuoteGround/utils/canonicaltries/CanonicalTries.v
 theories/Template/QuoteGround/utils/canonicaltries/String2pos.v
 theories/Template/QuoteGround/utils/wGraph.v
 theories/Template/QuoteGroundTyping.v
+theories/Template/Reflect/Coq/Structures.v
 theories/Template/TermUtils.v
 theories/Util/Lists/Definitions.v
 theories/Util/Notations.v
+theories/Util/Structures/Orders.v
 theories/Util/Tactics/BreakMatch.v
 theories/Util/Tactics/DestructHead.v
 theories/Util/Tactics/DestructHyps.v
