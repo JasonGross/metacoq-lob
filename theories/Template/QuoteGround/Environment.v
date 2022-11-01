@@ -15,15 +15,10 @@ End Retroknowledge.
 Export Retroknowledge.Instances.
 
 Module Type QuoteTerm (T : Term).
-  Parameter qterm : quotation_of T.term.
-  Parameter qtSort : quotation_of T.tSort.
-  Parameter quote_term : ground_quotable T.term.
-
-  #[export] Existing Instances
-   qterm
-   qtSort
-   quote_term
-  .
+  #[export] Declare Instance qterm : quotation_of T.term.
+  #[export] Declare Instance qtSort : quotation_of T.tSort.
+  #[export] Declare Instance quote_term : ground_quotable T.term.
+  #[export] Declare Instance qclosedn : quotation_of T.closedn.
 End QuoteTerm.
 
 Module Type QuotationOfEnvironment (T : Term) (Import E : EnvironmentSig T).
@@ -55,6 +50,8 @@ Module QuoteEnvironment (T : Term) (Import E : EnvironmentSig T) (Import QT : Qu
   #[export] Instance quniverses : quotation_of universes := ltac:(cbv -[quotation_of]; exact _).
   #[export] Instance qdeclarations : quotation_of declarations := ltac:(cbv -[quotation_of]; exact _).
   #[export] Instance qglobal_declarations : quotation_of global_declarations := ltac:(cbv [global_declarations]; exact _).
+  #[export] Instance qglobal_env_ext : quotation_of global_env_ext := ltac:(cbv -[quotation_of]; exact _).
+  #[export] Instance qtyp_or_sort : quotation_of typ_or_sort := ltac:(cbv -[quotation_of]; exact _).
 
   #[export] Instance quote_extends {Σ Σ'} : ground_quotable (@extends Σ Σ') := ltac:(cbv [extends]; exact _).
   #[export] Instance quote_extends_decls {Σ Σ'} : ground_quotable (@extends_decls Σ Σ') := ltac:(cbv [extends_decls]; exact _).
@@ -78,6 +75,8 @@ Module QuoteEnvironment (T : Term) (Import E : EnvironmentSig T) (Import QT : Qu
      quniverses
      qdeclarations
      qglobal_declarations
+     qglobal_env_ext
+     qtyp_or_sort
      quote_extends
      quote_extends_decls
      quote_primitive_invariants
