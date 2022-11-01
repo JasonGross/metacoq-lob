@@ -19,6 +19,7 @@ theories/Template/QuoteGround/Coq/Numbers.v
 theories/Template/QuoteGround/Coq/Strings.v
 theories/Template/QuoteGround/Coq/ssr.v
 theories/Template/QuoteGround/Environment.v
+theories/Template/QuoteGround/EnvironmentTyping.v
 theories/Template/QuoteGround/Init.v
 theories/Template/QuoteGround/Kernames.v
 theories/Template/QuoteGround/Primitive.v
