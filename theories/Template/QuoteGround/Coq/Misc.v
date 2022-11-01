@@ -23,3 +23,6 @@ Defined.
 Proof.
   apply quote_or_dec_r; try exact _; cbv [is_true]; decide equality.
 Defined.
+
+#[export] Hint Cut [ ( _ *) quote_forall_eq_some ( _ * ) quote_forall_eq_some ] : typeclass_instances.
+#[export] Hint Cut [ ( _ *) quote_forall_neq_nil ( _ * ) quote_forall_neq_nil ] : typeclass_instances.
