@@ -19,11 +19,16 @@ Proof.
          end.
   all: cbn.
   2: {
-    cbv [Ast.declared_constructor Ast.declared_inductive Ast.declared_minductive]; cbn. (*
+    cbv [Ast.declared_constructor Ast.declared_inductive Ast.declared_minductive]; cbn.
     Print Ast.Env.InductiveDecl.
-    Locate global_decl.
     Print Ast.Env.mutual_inductive_body.
     Print Template.Universes.universes_decl.
+    Print Template.Universes.AUContext.t.
+    Print Template.Universes.ConstraintSet.t.
+    Print Template.Universes.ConstraintSet.t_.
+    (*
+    Print Ast.Env.InductiveDecl.
+    Locate global_decl.
     Print Template.Universes.ConstraintSet.Equal.
 
     Search Ast.Env.global_decl.

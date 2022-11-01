@@ -1,4 +1,4 @@
-From MetaCoq.Lob.Template.QuoteGround Require Export Coq.Init Coq.ssr config utils BasicAst Universes Environment Primitive.
+From MetaCoq.Lob.Template.QuoteGround Require Export Coq.Init Coq.Misc Coq.ssr config utils BasicAst Universes Environment Primitive.
 From MetaCoq.Lob.Template.Decidable Require Import EnvironmentTyping.
 From MetaCoq.Template Require Import BasicAst Environment EnvironmentTyping.
 
@@ -174,6 +174,17 @@ Module QuoteGlobalMaps (Import T: Term) (Import E: EnvironmentSig T) (Import TU 
     #[export] Instance qunivs_ext_constraints : quotation_of univs_ext_constraints := ltac:(cbv [univs_ext_constraints]; exact _).
     #[export] Instance qsatisfiable_udecl : quotation_of satisfiable_udecl := ltac:(cbv [satisfiable_udecl]; exact _).
     #[export] Instance qvalid_on_mono_udecl : quotation_of valid_on_mono_udecl := ltac:(cbv [valid_on_mono_udecl]; exact _).
+    #[export] Instance qsubst_instance_context : quotation_of subst_instance_context := ltac:(cbv [subst_instance_context]; exact _).
+    #[export] Instance qarities_context : quotation_of arities_context := ltac:(cbv -[quotation_of]; exact _).
+    #[export] Instance qind_arities : quotation_of ind_arities := ltac:(cbv -[quotation_of]; exact _).
+    #[export] Instance qlift_level : quotation_of lift_level := ltac:(cbv [lift_level]; exact _).
+    #[export] Instance qlift_constraint : quotation_of lift_constraint := ltac:(cbv [lift_constraint]; exact _).
+    #[export] Instance qlift_constraints : quotation_of lift_constraints := ltac:(cbv [lift_constraints]; exact _).
+    #[export] Instance qlift_instance : quotation_of lift_instance := ltac:(cbv [lift_instance]; exact _).
+    #[export] Instance qvariance_cstrs : quotation_of variance_cstrs := ltac:(cbv [variance_cstrs]; exact _).
+    #[export] Instance qlevel_var_instance : quotation_of level_var_instance := ltac:(cbv [level_var_instance]; exact _).
+    #[export] Instance qvariance_universes : quotation_of variance_universes := ltac:(cbv [variance_universes]; exact _).
+    #[export] Instance qcstr_respects_variance : quotation_of cstr_respects_variance := ltac:(cbv [cstr_respects_variance]; exact _).
 
     #[export] Instance quote_type_local_ctx {Σ Γ Δ u} : ground_quotable (@type_local_ctx P Σ Γ Δ u)
       := ltac:(induction Δ; cbn [type_local_ctx]; exact _).
@@ -197,19 +208,10 @@ Module QuoteGlobalMaps (Import T: Term) (Import E: EnvironmentSig T) (Import TU 
     Import StrongerInstances.
     #[export] Instance quote_ind_respects_variance {Σ mdecl v indices} : ground_quotable (@ind_respects_variance Pcmp Σ mdecl v indices) := ltac:(cbv [ind_respects_variance]; exact _).
     #[export] Instance quote_cstr_respects_variance {Σ mdecl v cs} : ground_quotable (@cstr_respects_variance Pcmp Σ mdecl v cs) := ltac:(cbv [cstr_respects_variance]; exact _).
-    #[export] Instance quote_on_constructor {Σ mdecl i idecl ind_indices cdecl cunivs} : ground_quotable (@on_constructor cf Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs).
+    #[export] Instance quote_on_constructor {Σ mdecl i idecl ind_indices cdecl cunivs} : ground_quotable (@on_constructor cf Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs) := ltac:(destruct 1; exact _).
+    Local Instance: debug_opt := true. Import Template.utils.bytestring. Fail
+    #[export] Instance quote_on_proj {mdecl mind i k p decl} : ground_quotable (@on_proj mdecl mind i k p decl) := ltac:(destruct 1; exact _).
 
-    destruct 1; try exact _.
-    repeat match goal with H : _ |- _ => generalize (_ : quotation_of H); revert H end.
-
-         Record on_constructor Σ mdecl i idecl ind_indices cdecl cunivs := {
-
-
-    repeat match goal with H : _ |- _ => generalize (_ : quotation_of H); revert H end.
-      := ltac:(induction 1; exact _).
-
-    Inductive positive_cstr mdecl i (ctx : context) : term -> Type :=
-    Record on_constructor Σ mdecl i idecl ind_indices cdecl cunivs := {
     Record on_proj mdecl mind i k (p : projection_body) decl :=
     Record on_projections mdecl mind i idecl (ind_indices : context) cdecl :=
     Record on_ind_body Σ mind mdecl i idecl :=
@@ -222,44 +224,6 @@ Module QuoteGlobalMaps (Import T: Term) (Import E: EnvironmentSig T) (Import TU 
 
 
 
-    Record on_constructor Σ mdecl i idecl ind_indices cdecl cunivs := {
-      (* cdecl.1 fresh ?? *)
-      cstr_args_length : context_assumptions (cstr_args cdecl) = cstr_arity cdecl;
-
-      cstr_eq : cstr_type cdecl =
-       it_mkProd_or_LetIn mdecl.(ind_params)
-        (it_mkProd_or_LetIn (cstr_args cdecl)
-          (cstr_concl mdecl i cdecl));
-      (* The type of the constructor canonically has this shape: parameters, real
-        arguments ending with a reference to the inductive applied to the
-        (non-lets) parameters and arguments *)
-
-      on_ctype : on_type Σ (arities_context mdecl.(ind_bodies)) (cstr_type cdecl);
-      on_cargs :
-        sorts_local_ctx Σ (arities_context mdecl.(ind_bodies) ,,, mdecl.(ind_params))
-                      cdecl.(cstr_args) cunivs;
-      on_cindices :
-        ctx_inst (fun Σ Γ t T => P Σ Γ t (Typ T)) Σ (arities_context mdecl.(ind_bodies) ,,, mdecl.(ind_params) ,,, cdecl.(cstr_args))
-                      cdecl.(cstr_indices)
-                      (List.rev (lift_context #|cdecl.(cstr_args)| 0 ind_indices));
-
-      on_ctype_positive : (* The constructor type is positive *)
-        positive_cstr mdecl i [] (cstr_type cdecl);
-
-      on_ctype_variance : (* The constructor type respect the variance annotation
-        on polymorphic universes, if any. *)
-        forall v, ind_variance mdecl = Some v ->
-        cstr_respects_variance Σ mdecl v cdecl;
-
-      on_lets_in_type : if lets_in_constructor_types
-                        then True else is_true (is_assumption_context (cstr_args cdecl))
-    }.
-
-    Arguments on_ctype {Σ mdecl i idecl ind_indices cdecl cunivs}.
-    Arguments on_cargs {Σ mdecl i idecl ind_indices cdecl cunivs}.
-    Arguments on_cindices {Σ mdecl i idecl ind_indices cdecl cunivs}.
-    Arguments cstr_args_length {Σ mdecl i idecl ind_indices cdecl cunivs}.
-    Arguments cstr_eq {Σ mdecl i idecl ind_indices cdecl cunivs}.
 
     Definition on_constructors Σ mdecl i idecl ind_indices :=
       All2 (on_constructor Σ mdecl i idecl ind_indices).

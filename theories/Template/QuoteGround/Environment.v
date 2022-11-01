@@ -16,9 +16,22 @@ Export Retroknowledge.Instances.
 
 Module Type QuoteTerm (T : Term).
   #[export] Declare Instance qterm : quotation_of T.term.
-  #[export] Declare Instance qtSort : quotation_of T.tSort.
   #[export] Declare Instance quote_term : ground_quotable T.term.
+
+  #[export] Declare Instance qtRel : quotation_of T.tRel.
+  #[export] Declare Instance qtSort : quotation_of T.tSort.
+  #[export] Declare Instance qtProd : quotation_of T.tProd.
+  #[export] Declare Instance qtLambda : quotation_of T.tLambda.
+  #[export] Declare Instance qtLetIn : quotation_of T.tLetIn.
+  #[export] Declare Instance qtInd : quotation_of T.tInd.
+  #[export] Declare Instance qtProj : quotation_of T.tProj.
+  #[export] Declare Instance qmkApps : quotation_of T.mkApps.
+
+  #[export] Declare Instance qlift : quotation_of T.lift.
+  #[export] Declare Instance qsubst : quotation_of T.subst.
   #[export] Declare Instance qclosedn : quotation_of T.closedn.
+  #[export] Declare Instance qnoccur_between : quotation_of T.noccur_between.
+  #[export] Declare Instance qsubst_instance_constr : quotation_of T.subst_instance_constr.
 End QuoteTerm.
 
 Module Type QuotationOfEnvironment (T : Term) (Import E : EnvironmentSig T).
@@ -59,6 +72,33 @@ Module QuoteEnvironment (T : Term) (Import E : EnvironmentSig T) (Import QT : Qu
 
   #[export] Instance quote_All_decls {P t t'} {qP : quotation_of P} {quoteP : forall t t', ground_quotable (P t t')} : ground_quotable (All_decls P t t') := ltac:(induction 1; exact _).
   #[export] Instance quote_All_decls_alpha {P t t'} {qP : quotation_of P} {quoteP : forall t t', ground_quotable (P t t')} : ground_quotable (All_decls_alpha P t t') := ltac:(induction 1; exact _).
+  #[export] Instance qcontext : quotation_of context := ltac:(cbv [context]; exact _).
+  #[export] Instance qsubst_context : quotation_of subst_context := ltac:(cbv [subst_context]; exact _).
+  #[export] Instance qsmash_context : quotation_of smash_context := ltac:(cbv [smash_context]; exact _).
+
+  #[export] Instance qind_finite : quotation_of ind_finite := ltac:(cbv [ind_finite]; exact _).
+  #[export] Instance qind_npars : quotation_of ind_npars := ltac:(cbv [ind_npars]; exact _).
+  #[export] Instance qind_params : quotation_of ind_params := ltac:(cbv [ind_params]; exact _).
+  #[export] Instance qind_bodies : quotation_of ind_bodies := ltac:(cbv [ind_bodies]; exact _).
+  #[export] Instance qind_universes : quotation_of ind_universes := ltac:(cbv [ind_universes]; exact _).
+  #[export] Instance qind_variance : quotation_of ind_variance := ltac:(cbv [ind_variance]; exact _).
+
+  #[export] Instance qcontext_assumptions : quotation_of context_assumptions := ltac:(cbv [context_assumptions]; exact _).
+  #[export] Instance qextended_subst : quotation_of extended_subst := ltac:(cbv [extended_subst]; exact _).
+  #[export] Instance qlift_context : quotation_of lift_context := ltac:(cbv [lift_context]; exact _).
+  #[export] Instance qexpand_lets_k_ctx : quotation_of expand_lets_k_ctx := ltac:(cbv [expand_lets_k_ctx]; exact _).
+  #[export] Instance qexpand_lets_ctx : quotation_of expand_lets_ctx := ltac:(cbv [expand_lets_ctx]; exact _).
+
+  #[export] Instance qcstr_name : quotation_of cstr_name := ltac:(cbv [cstr_name]; exact _).
+  #[export] Instance qcstr_args : quotation_of cstr_args := ltac:(cbv [cstr_args]; exact _).
+  #[export] Instance qcstr_indices : quotation_of cstr_indices := ltac:(cbv [cstr_indices]; exact _).
+  #[export] Instance qcstr_type : quotation_of cstr_type := ltac:(cbv [cstr_type]; exact _).
+  #[export] Instance qcstr_arity : quotation_of cstr_arity := ltac:(cbv [cstr_arity]; exact _).
+
+  #[export] Instance qexpand_lets_k : quotation_of expand_lets_k := ltac:(cbv [expand_lets_k]; exact _).
+  #[export] Instance qexpand_lets : quotation_of expand_lets := ltac:(cbv [expand_lets]; exact _).
+
+  #[export] Instance qfst_ctx : quotation_of fst_ctx := ltac:(cbv [fst_ctx]; exact _).
 
   Module Instances.
     #[export] Existing Instances
@@ -77,6 +117,29 @@ Module QuoteEnvironment (T : Term) (Import E : EnvironmentSig T) (Import QT : Qu
      qglobal_declarations
      qglobal_env_ext
      qtyp_or_sort
+     qcontext
+     qsubst_context
+     qsmash_context
+     qind_params
+     qcontext_assumptions
+     qextended_subst
+     qlift_context
+     qexpand_lets_k_ctx
+     qexpand_lets_ctx
+     qcstr_name
+     qcstr_args
+     qcstr_indices
+     qcstr_type
+     qcstr_arity
+     qexpand_lets_k
+     qexpand_lets
+     qind_finite
+     qind_npars
+     qind_params
+     qind_bodies
+     qind_universes
+     qind_variance
+     qfst_ctx
      quote_extends
      quote_extends_decls
      quote_primitive_invariants

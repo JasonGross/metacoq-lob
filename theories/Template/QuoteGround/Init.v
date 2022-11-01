@@ -222,7 +222,7 @@ Proof.
            | my_None => (if debug then tmPrint (quotation_of t) else ret tt);; tmFail "No typeclass instance"
            end) in
      if head_term_is_bound qt
-     then tmFail "bound argument is not ground"
+     then ((if debug then tmPrint qt else ret tt);; tmFail "bound argument is not ground")
      else
        match qt return TemplateMonad Ast.term with
        | tSort _
@@ -293,6 +293,8 @@ Class quotation_of_well_typed {Pcf : config.typing_restriction} {T} (t : T) {qT 
 Class ground_quotable_well_typed {Pcf : config.typing_restriction} T {qT : quotation_of T} {quoteT : ground_quotable T} := typing_quote_ground : forall t : T, quotation_of_well_typed t.
 
 Module Export Instances.
+  (* some performance settings *)
+  #[export] Set Typeclasses Unique Instances.
   #[export] Instance default_debug : debug_opt | 1000 := false.
   #[export] Instance default_typing_restriction : config.typing_restriction | 1000
     := {| config.checker_flags_constraint cf := true
@@ -307,7 +309,7 @@ Module Export Instances.
   #[export]
    Hint Extern 1 (quotation_of _) => replace_quotation_of_goal () : typeclass_instances.
   #[export]
-   Hint Extern 2 (quotation_of ?t) => make_quotation_of_goal () : typeclass_instances.
+   Hint Extern 2 (quotation_of _) => make_quotation_of_goal () : typeclass_instances.
   #[export] Hint Mode cls_is_true + : typeclass_instances.
   #[export] Existing Instances qquotation | 10.
   (* Hack around COQBUG(https://github.com/coq/coq/issues/16760) *)
