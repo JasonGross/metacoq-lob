@@ -19,11 +19,18 @@ Proof.
          end.
   all: cbn.
   2: {
-    cbv [Ast.declared_constructor].
+    cbv [Ast.declared_constructor Ast.declared_inductive Ast.declared_minductive]; cbn. (*
+    Print Ast.Env.InductiveDecl.
+    Locate global_decl.
+    Print Ast.Env.mutual_inductive_body.
+    Print Template.Universes.universes_decl.
+    Print Template.Universes.ConstraintSet.Equal.
+
+    Search Ast.Env.global_decl.
     cbn.
-    cbv [Ast.declared_inductive].
+    cbv [].
     cbn.
-    cbv [Ast.declared_minductive].
+    cbv [].
     cbn.
     Import Template.All.
     Import MCMonadNotation.
@@ -239,4 +246,5 @@ Scheme Equality for comparison.
 #[export] Instance quote_neq_comparison {x y} : ground_quotable (x <> y :> comparison) := ground_quotable_neg_of_dec (@comparison_eq_dec x y).
 
 #[export] Instance quote_nle {n m} : ground_quotable (~le n m) := ground_quotable_neg_of_dec (Compare_dec.le_dec n m).
+*)
 *)
