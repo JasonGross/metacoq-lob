@@ -47,7 +47,11 @@ Co#[export] Instance quote_EqSt : ground_quotable EqSt := ltac:(destruct 1; exac
 Co#[export] Instance quote_ForAll : ground_quotable ForAll := ltac:(destruct 1; exact _). (x: Stream) : Prop :=
 *)
 
-Definition list_eq_nil_dec {A} {l : list A} : {l = []} + {l <> []}.
+Definition list_eq_nil_dec_r {A} {l : list A} : {l = []} + {l <> []}.
 Proof. destruct l; [ left | right ]; try reflexivity; congruence. Defined.
-#[export] Instance quote_list_neq_nil {A} {qA : quotation_of A} (l : list A) {ql : quotation_of l} : ground_quotable (l <> [])
-  := ground_quotable_neg_of_dec list_eq_nil_dec.
+Definition list_eq_nil_dec_l {A} {l : list A} : {[] = l} + {[] <> l}.
+Proof. destruct l; [ left | right ]; try reflexivity; congruence. Defined.
+#[export] Instance quote_list_neq_nil_r {A} {qA : quotation_of A} (l : list A) {ql : quotation_of l} : ground_quotable (l <> [])
+  := ground_quotable_neg_of_dec list_eq_nil_dec_r.
+#[export] Instance quote_list_neq_nil_l {A} {qA : quotation_of A} (l : list A) {ql : quotation_of l} : ground_quotable ([] <> l)
+  := ground_quotable_neg_of_dec list_eq_nil_dec_l.

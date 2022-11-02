@@ -155,3 +155,12 @@ Scheme Equality for comparison.
 #[export] Instance quote_neq_comparison {x y} : ground_quotable (x <> y :> comparison) := ground_quotable_neg_of_dec (@comparison_eq_dec x y).
 
 #[export] Instance quote_nle {n m} : ground_quotable (~le n m) := ground_quotable_neg_of_dec (Compare_dec.le_dec n m).
+
+Definition option_eq_None_dec_r {A} {l : option A} : {l = None} + {l <> None}.
+Proof. destruct l; [ right | left ]; try reflexivity; congruence. Defined.
+Definition option_eq_None_dec_l {A} {l : option A} : {None = l} + {None <> l}.
+Proof. destruct l; [ right | left ]; try reflexivity; congruence. Defined.
+#[export] Instance quote_option_neq_None_r {A} {qA : quotation_of A} (l : option A) {ql : quotation_of l} : ground_quotable (l <> None)
+  := ground_quotable_neg_of_dec option_eq_None_dec_r.
+#[export] Instance quote_option_neq_None_l {A} {qA : quotation_of A} (l : option A) {ql : quotation_of l} : ground_quotable (None <> l)
+  := ground_quotable_neg_of_dec option_eq_None_dec_l.
