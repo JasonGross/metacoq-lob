@@ -100,6 +100,18 @@ Module QuoteEnvironment (T : Term) (Import E : EnvironmentSig T) (Import QT : Qu
 
   #[export] Instance qfst_ctx : quotation_of fst_ctx := ltac:(cbv [fst_ctx]; exact _).
 
+  #[export] Instance qlookup_global : quotation_of lookup_global := ltac:(cbv [lookup_global]; exact _).
+  #[export] Instance qlookup_env : quotation_of lookup_env := ltac:(cbv [lookup_env]; exact _).
+
+  #[export] Instance qind_name : quotation_of ind_name := ltac:(cbv [ind_name]; exact _).
+  #[export] Instance qind_indices : quotation_of ind_indices := ltac:(cbv [ind_indices]; exact _).
+  #[export] Instance qind_sort : quotation_of ind_sort := ltac:(cbv [ind_sort]; exact _).
+  #[export] Instance qind_type : quotation_of ind_type := ltac:(cbv [ind_type]; exact _).
+  #[export] Instance qind_kelim : quotation_of ind_kelim := ltac:(cbv [ind_kelim]; exact _).
+  #[export] Instance qind_ctors : quotation_of ind_ctors := ltac:(cbv [ind_ctors]; exact _).
+  #[export] Instance qind_projs : quotation_of ind_projs := ltac:(cbv [ind_projs]; exact _).
+  #[export] Instance qind_relevance : quotation_of ind_relevance := ltac:(cbv [ind_relevance]; exact _).
+
   Module Instances.
     #[export] Existing Instances
      quote_constructor_body
@@ -140,6 +152,16 @@ Module QuoteEnvironment (T : Term) (Import E : EnvironmentSig T) (Import QT : Qu
      qind_universes
      qind_variance
      qfst_ctx
+     qlookup_global
+     qlookup_env
+     qind_name
+     qind_indices
+     qind_sort
+     qind_type
+     qind_kelim
+     qind_ctors
+     qind_projs
+     qind_relevance
      quote_extends
      quote_extends_decls
      quote_primitive_invariants

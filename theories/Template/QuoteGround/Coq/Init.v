@@ -1,5 +1,7 @@
 Require Import Coq.Lists.List.
 From MetaCoq.Lob.Template Require Export QuoteGround.Init.
+From MetaCoq.Template Require Export utils.ReflectEq.
+Require Import Equations.Prop.Classes.
 Import ListNotations.
 
 Export QuoteGround.Init.Instances.
@@ -11,7 +13,7 @@ Export QuoteGround.Init.Instances.
 #[export] Instance quote_unit : ground_quotable unit := ltac:(destruct 1; exact _).
 #[export] Instance quote_bool : ground_quotable bool := ltac:(destruct 1; exact _).
 
-#[export] Instance quote_eq {A} {qA : quotation_of A} {qA : ground_quotable A} {x y : A} : ground_quotable (x = y :> A) := ltac:(intros []; exact _).
+#[export] Instance quote_eq {A} {qA : quotation_of A} {quoteA : ground_quotable A} {x y : A} : ground_quotable (x = y :> A) := ltac:(intros []; exact _).
 #[export] Instance quote_eq_refl_l {A} {qA : quotation_of A} {x y : A} {qx : quotation_of x} : ground_quotable (x = y :> A) := ltac:(intros []; exact _).
 #[export] Instance quote_eq_refl_r {A} {qA : quotation_of A} {x y : A} {qy : quotation_of y} : ground_quotable (x = y :> A) := ltac:(intro; subst; exact _).
 
@@ -41,6 +43,9 @@ Definition ground_quotable_of_dec {P} (H : {P} + {~P}) {qP : quotation_of P} {qH
   := ground_quotable_of_bp bp_of_dec pb_of_dec.
 Definition ground_quotable_neg_of_dec {P} (H : {P} + {~P}) {qP : quotation_of P} {qH : quotation_of H} : ground_quotable (~P)
   := ground_quotable_neg_of_bp neg_bp_of_dec neg_pb_of_dec.
+Definition ground_quotable_neq_of_EqDec {A x y} {qA : quotation_of A} {quoteA : ground_quotable A} {H : EqDec A} {qH : quotation_of H} : ground_quotable (x <> y :> A)
+  := ground_quotable_neg_of_dec (H x y).
+#[export] Hint Extern 1 (ground_quotable (?x <> ?y :> ?A)) => simple notypeclasses refine (@ground_quotable_neq_of_EqDec A x y _ _ _ _) : typeclass_instances.
 
 #[export] Instance quote_eq_true {b} : ground_quotable (eq_true b) := ltac:(destruct 1; exact _).
 #[export] Instance quote_BoolSpec {P Q : Prop} {b} {qP : quotation_of P} {qQ : quotation_of Q} {quoteP : ground_quotable P} {quoteQ : ground_quotable Q} : ground_quotable (BoolSpec P Q b).

@@ -21,6 +21,19 @@ Module QuoteLookup (Import T : Term) (Import E : EnvironmentSig T) (Import L : L
   #[export] Instance quote_wf_universe {Σ s} : ground_quotable (@wf_universe Σ s)
     := ground_quotable_of_dec (@wf_universe_dec Σ s).
 
+
+  #[export] Instance qdeclared_constant : quotation_of declared_constant := ltac:(cbv [declared_constant]; exact _).
+  #[export] Instance qdeclared_minductive : quotation_of declared_minductive := ltac:(cbv [declared_minductive]; exact _).
+  #[export] Instance qdeclared_inductive : quotation_of declared_inductive := ltac:(cbv [declared_inductive]; exact _).
+  #[export] Instance qdeclared_constructor : quotation_of declared_constructor := ltac:(cbv [declared_constructor]; exact _).
+  #[export] Instance qdeclared_projection : quotation_of declared_projection := ltac:(cbv [declared_projection]; exact _).
+
+  #[export] Instance quote_declared_constant {Σ id decl} : ground_quotable (@declared_constant Σ id decl) := _.
+  #[export] Instance quote_declared_minductive {Σ mind decl} : ground_quotable (@declared_minductive Σ mind decl) := _.
+  #[export] Instance quote_declared_inductive {Σ ind mdecl decl} : ground_quotable (@declared_inductive Σ ind mdecl decl) := _.
+  #[export] Instance quote_declared_constructor {Σ cstr mdecl idecl cdecl} : ground_quotable (@declared_constructor Σ cstr mdecl idecl cdecl) := _.
+  #[export] Instance quote_declared_projection {Σ proj mdecl idecl cdecl pdecl} : ground_quotable (@declared_projection Σ proj mdecl idecl cdecl pdecl) := _.
+
   Module Instances.
     #[export] Existing Instances
      quote_udecl_decl
@@ -29,6 +42,16 @@ Module QuoteLookup (Import T : Term) (Import E : EnvironmentSig T) (Import L : L
      quote_wf_universe
      qglobal_levels
      qglobal_ext_levels
+     qdeclared_constant
+     qdeclared_minductive
+     qdeclared_inductive
+     qdeclared_constructor
+     qdeclared_projection
+     quote_declared_constant
+     quote_declared_minductive
+     quote_declared_inductive
+     quote_declared_constructor
+     quote_declared_projection
     .
   End Instances.
 End QuoteLookup.
@@ -48,6 +71,7 @@ Module QuoteEnvTyping (Import T : Term) (Import E : EnvironmentSig T) (Import TU
   #[export] Instance quote_lift_judgment {check infer_sort Σ Γ t T} {quote_check : forall T', T = Typ T' -> ground_quotable (check Σ Γ t T')} {quote_infer_sort : T = Sort -> ground_quotable (infer_sort Σ Γ t)} : ground_quotable (@lift_judgment check infer_sort Σ Γ t T) := ltac:(cbv [lift_judgment]; exact _).
 
   #[export] Instance qlift_judgment : quotation_of lift_judgment := ltac:(cbv -[quotation_of]; exact _).
+  #[export] Instance qlift_typing : quotation_of lift_typing := ltac:(cbv -[quotation_of]; exact _).
 
   #[export] Instance quote_All_local_env_over_gen
    {checking sorting cproperty sproperty Σ Γ H}
@@ -84,6 +108,7 @@ Module QuoteEnvTyping (Import T : Term) (Import E : EnvironmentSig T) (Import TU
      quote_on_local_decl
      quote_lift_judgment
      qlift_judgment
+     qlift_typing
      quote_All_local_env_over_gen
      qinfer_sort
      qglobal_env_ext
@@ -185,6 +210,13 @@ Module QuoteGlobalMaps (Import T: Term) (Import E: EnvironmentSig T) (Import TU 
     #[export] Instance qlevel_var_instance : quotation_of level_var_instance := ltac:(cbv [level_var_instance]; exact _).
     #[export] Instance qvariance_universes : quotation_of variance_universes := ltac:(cbv [variance_universes]; exact _).
     #[export] Instance qcstr_respects_variance : quotation_of cstr_respects_variance := ltac:(cbv [cstr_respects_variance]; exact _).
+    #[export] Instance qconstructor_univs : quotation_of constructor_univs := ltac:(cbv [constructor_univs]; exact _).
+    #[export] Instance qind_respects_variance : quotation_of ind_respects_variance := ltac:(cbv [ind_respects_variance]; exact _).
+    #[export] Instance qon_global_univs : quotation_of on_global_univs := ltac:(cbv [on_global_univs]; exact _).
+    #[export] Instance qon_udecl : quotation_of on_udecl := ltac:(cbv [on_udecl]; exact _).
+    #[export] Instance qon_global_env : quotation_of (@on_global_env) := ltac:(cbv [on_global_env retroknowledge]; exact _).
+
+    #[export] Instance quote_constructor_univs : ground_quotable constructor_univs := _.
 
     #[export] Instance quote_type_local_ctx {Σ Γ Δ u} : ground_quotable (@type_local_ctx P Σ Γ Δ u)
       := ltac:(induction Δ; cbn [type_local_ctx]; exact _).
@@ -193,9 +225,6 @@ Module QuoteGlobalMaps (Import T: Term) (Import E: EnvironmentSig T) (Import TU 
       := ltac:(revert us; induction Δ, us; cbn [sorts_local_ctx]; exact _).
 
     #[export] Instance quote_on_type {Σ Γ T} : ground_quotable (@on_type P Σ Γ T) := _.
-
-    #[local] Hint Extern 1 (ground_quotable (Universes.LevelSet.For_all _ _)) => simple eapply @QuoteLevelSet.quote_For_all : typeclass_instances.
-    #[local] Hint Extern 1 (ground_quotable (Universes.ConstraintSet.For_all _ _)) => simple eapply @QuoteConstraintSet.quote_For_all : typeclass_instances.
 
     #[export] Instance quote_on_udecl {univs udecl} : ground_quotable (@on_udecl univs udecl)
       := ltac:(cbv [on_udecl]; exact _).
@@ -209,501 +238,115 @@ Module QuoteGlobalMaps (Import T: Term) (Import E: EnvironmentSig T) (Import TU 
     #[export] Instance quote_ind_respects_variance {Σ mdecl v indices} : ground_quotable (@ind_respects_variance Pcmp Σ mdecl v indices) := ltac:(cbv [ind_respects_variance]; exact _).
     #[export] Instance quote_cstr_respects_variance {Σ mdecl v cs} : ground_quotable (@cstr_respects_variance Pcmp Σ mdecl v cs) := ltac:(cbv [cstr_respects_variance]; exact _).
     #[export] Instance quote_on_constructor {Σ mdecl i idecl ind_indices cdecl cunivs} : ground_quotable (@on_constructor cf Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs) := ltac:(destruct 1; exact _).
-    Local Instance: debug_opt := true. Import Template.utils.bytestring. Fail
-    #[export] Instance quote_on_proj {mdecl mind i k p decl} : ground_quotable (@on_proj mdecl mind i k p decl) := ltac:(destruct 1; exact _).
-
-    Record on_proj mdecl mind i k (p : projection_body) decl :=
-    Record on_projections mdecl mind i idecl (ind_indices : context) cdecl :=
-    Record on_ind_body Σ mind mdecl i idecl :=
-    Record on_inductive Σ mind mdecl :=
-    Record on_global_decls_data (univs : ContextSet.t) retro (Σ : global_declarations) (kn : kername) (d : global_decl) :=
-    Inductive on_global_decls (univs : ContextSet.t) (retro : Retroknowledge.t): global_declarations -> Type :=
-
-
-    Open Scope type_scope.
-
-
-
-
-    Definition on_constructors Σ mdecl i idecl ind_indices :=
-      All2 (on_constructor Σ mdecl i idecl ind_indices).
-
-    (** Each projection type corresponds to a non-let argument of the
-        corresponding constructor. It is parameterized over the
-        parameters of the inductive type and all the preceding arguments
-        of the constructor. When computing the type of a projection for argument
-        [n] at a given instance of the parameters and a given term [t] in the inductive
-        type, we instantiate the argument context by corresponsping projections
-        [t.π1 ... t.πn-1]. This is essential for subject reduction to hold: each
-        projections type can only refer to the record object through projections.
-
-      Projection types have their parameter and argument contexts smashed to avoid
-      costly computations during type-checking and reduction: we can just substitute
-      the instances of parameters and the inductive value without considering the
-      presence of let bindings. *)
-
-    Record on_proj mdecl mind i k (p : projection_body) decl :=
-      { on_proj_name : (* All projections are be named after a constructor argument. *)
-          binder_name (decl_name decl) = nNamed p.(proj_name);
-        on_proj_type :
-          (** The stored projection type already has the references to the inductive
-              type substituted along with the previous arguments replaced by projections. *)
-          let u := abstract_instance mdecl.(ind_universes) in
-          let ind := {| inductive_mind := mind; inductive_ind := i |} in
-          p.(proj_type) = subst (inds mind u mdecl.(ind_bodies)) (S (ind_npars mdecl))
-            (subst (projs ind mdecl.(ind_npars) k) 0
-              (lift 1 k (decl_type decl)));
-        on_proj_relevance : p.(proj_relevance) = decl.(decl_name).(binder_relevance) }.
-
-    Definition on_projection mdecl mind i cdecl (k : nat) (p : projection_body) :=
-      let Γ := smash_context [] (cdecl.(cstr_args) ++ mdecl.(ind_params)) in
-      match nth_error Γ (context_assumptions cdecl.(cstr_args) - S k) with
-      | None => False
-      | Some decl => on_proj mdecl mind i k p decl
-      end.
-
-    Record on_projections mdecl mind i idecl (ind_indices : context) cdecl :=
-      { on_projs_record : #|idecl.(ind_ctors)| = 1;
-        (** The inductive must be a record *)
-
-        on_projs_noidx : #|ind_indices| = 0;
-        (** The inductive cannot have indices *)
-
-        on_projs_elim : idecl.(ind_kelim) = IntoAny;
-        (** This ensures that all projections are definable *)
-
-        on_projs_all : #|idecl.(ind_projs)| = context_assumptions (cstr_args cdecl);
-        (** There are as many projections as (non-let) constructor arguments *)
-
-        on_projs : Alli (on_projection mdecl mind i cdecl) 0 idecl.(ind_projs) }.
-
-    Definition check_constructors_smaller φ cunivss ind_sort :=
-      Forall (fun cunivs =>
-        Forall (fun argsort => leq_universe φ argsort ind_sort) cunivs) cunivss.
-
-    (** This ensures that all sorts in kelim are lower
-        or equal to the top elimination sort, if set.
-        For inductives in Type we do not check [kelim] currently. *)
-
-    Definition constructor_univs := list Universe.t.
-    (* The sorts of the arguments context (without lets) *)
-
-    Definition elim_sort_prop_ind (ind_ctors_sort : list constructor_univs) :=
-      match ind_ctors_sort with
-      | [] => (* Empty inductive proposition: *) IntoAny
-      | [ s ] =>
-        if forallb Universes.is_propositional s then
-          IntoAny (* Singleton elimination *)
-        else
-          IntoPropSProp (* Squashed: some arguments are higher than Prop, restrict to Prop *)
-      | _ => (* Squashed: at least 2 constructors *) IntoPropSProp
-      end.
-
-    Definition elim_sort_sprop_ind (ind_ctors_sort : list constructor_univs) :=
-      match ind_ctors_sort with
-      | [] => (* Empty inductive strict proposition: *) IntoAny
-      | _ => (* All other inductives in SProp are squashed *) IntoSProp
-      end.
-
-    Definition check_ind_sorts (Σ : global_env_ext)
-              params kelim ind_indices cdecls ind_sort : Type :=
-      if Universe.is_prop ind_sort then
-        (** The inductive is declared in the impredicative sort Prop *)
-        (** No universe-checking to do: any size of constructor argument is allowed,
-            however elimination restrictions apply. *)
-        (allowed_eliminations_subset kelim (elim_sort_prop_ind cdecls) : Type)
-      else if Universe.is_sprop ind_sort then
-        (** The inductive is declared in the impredicative sort SProp *)
-        (** No universe-checking to do: any size of constructor argument is allowed,
-            however elimination restrictions apply. *)
-        (allowed_eliminations_subset kelim (elim_sort_sprop_ind cdecls) : Type)
-      else
-        (** The inductive is predicative: check that all constructors arguments are
-            smaller than the declared universe. *)
-        check_constructors_smaller Σ cdecls ind_sort
-        × if indices_matter then
-            type_local_ctx Σ params ind_indices ind_sort
-          else True.
-
-    Record on_ind_body Σ mind mdecl i idecl :=
-      { (** The type of the inductive must be an arity, sharing the same params
-            as the rest of the block, and maybe having a context of indices. *)
-        ind_arity_eq : idecl.(ind_type)
-                      = it_mkProd_or_LetIn mdecl.(ind_params)
-                                (it_mkProd_or_LetIn idecl.(ind_indices) (tSort idecl.(ind_sort)));
-
-        (** It must be well-typed in the empty context. *)
-        onArity : on_type Σ [] idecl.(ind_type);
-
-        (** The sorts of the arguments contexts of each constructor *)
-        ind_cunivs : list constructor_univs;
-
-        (** Constructors are well-typed *)
-        onConstructors :
-          on_constructors Σ mdecl i idecl idecl.(ind_indices) idecl.(ind_ctors) ind_cunivs;
-
-        (** Projections, if any, are well-typed *)
-        onProjections :
-          match idecl.(ind_projs), idecl.(ind_ctors) return Type with
-          | [], _ => True
-          | _, [ o ] =>
-              on_projections mdecl mind i idecl idecl.(ind_indices) o
-          | _, _ => False
-          end;
-
-        (** The universes and elimination sorts must be correct w.r.t.
-            the universe of the inductive and the universes in its constructors, which
-            are declared in [on_constructors]. *)
-        ind_sorts :
-          check_ind_sorts Σ mdecl.(ind_params) idecl.(ind_kelim)
-                          idecl.(ind_indices) ind_cunivs idecl.(ind_sort);
-
-        onIndices :
-          (* The inductive type respect the variance annotation on polymorphic universes, if any. *)
-          match ind_variance mdecl with
-          | Some v => ind_respects_variance Σ mdecl v idecl.(ind_indices)
-          | None => True
-          end
-      }.
-
-    Definition on_variance Σ univs (variances : option (list Variance.t)) :=
-      match univs return Type with
-      | Monomorphic_ctx => variances = None
-      | Polymorphic_ctx auctx =>
-        match variances with
-        | None => unit
-        | Some v =>
-          ∑ univs' i i',
-            [× (variance_universes univs v = Some (univs', i, i')),
-              consistent_instance_ext (Σ, univs') univs i,
-              consistent_instance_ext (Σ, univs') univs i' &
-              List.length v = #|UContext.instance (AUContext.repr auctx)|]
-        end
-      end.
-
-    (** We allow empty blocks for simplicity
-        (no well-typed reference to them can be made). *)
-
-    Record on_inductive Σ mind mdecl :=
-      { onInductives : Alli (on_ind_body Σ mind mdecl) 0 mdecl.(ind_bodies);
-        (** We check that the context of parameters is well-formed and that
-            the size annotation counts assumptions only (no let-ins). *)
-        onParams : on_context Σ mdecl.(ind_params);
-        onNpars : context_assumptions mdecl.(ind_params) = mdecl.(ind_npars);
-        (** We check that the variance annotations are well-formed: i.e. they
-          form a valid universe context. *)
-        onVariance : on_variance Σ mdecl.(ind_universes) mdecl.(ind_variance);
-      }.
-
-    (** *** Typing of constant declarations *)
-
-    Definition on_constant_decl Σ d :=
-      match d.(cst_body) with
-      | Some trm => P Σ [] trm (Typ d.(cst_type))
-      | None => on_type Σ [] d.(cst_type)
-      end.
-
-    Definition on_global_decl Σ kn decl :=
-      match decl with
-      | ConstantDecl d => on_constant_decl Σ d
-      | InductiveDecl inds => on_inductive Σ kn inds
-      end.
-
-    (** *** Typing of global environment
-
-        All declarations should be typeable and the global
-        set of universe constraints should be consistent. *)
-
-    (** Well-formed global environments have no name clash. *)
-
-    Definition fresh_global (s : kername) (g : global_declarations) : Prop :=
-      Forall (fun g => g.1 <> s) g.
-
-    Record on_global_decls_data (univs : ContextSet.t) retro (Σ : global_declarations) (kn : kername) (d : global_decl) :=
-        {
-          kn_fresh :  fresh_global kn Σ ;
-          udecl := universes_decl_of_decl d ;
-          on_udecl_udecl : on_udecl univs udecl ;
-          on_global_decl_d : on_global_decl (mk_global_env univs Σ retro, udecl) kn d
-        }.
-
-    Inductive on_global_decls (univs : ContextSet.t) (retro : Retroknowledge.t): global_declarations -> Type :=
-    | globenv_nil : on_global_decls univs retro []
-    | globenv_decl Σ kn d :
-        on_global_decls univs retro Σ ->
-        on_global_decls_data univs retro Σ kn d ->
-        on_global_decls univs retro (Σ ,, (kn, d)).
-
-    Derive Signature for on_global_decls.
-
-    Definition on_global_univs (c : ContextSet.t) :=
-      let levels := global_levels c in
-      let cstrs := ContextSet.constraints c in
-      ConstraintSet.For_all (declared_cstr_levels levels) cstrs /\
-      LS.For_all (negb ∘ Level.is_var) levels /\
-      consistent cstrs.
-
-    Definition on_global_env (g : global_env) : Type :=
-      on_global_univs g.(universes) × on_global_decls g.(universes) g.(retroknowledge) g.(declarations).
-
-    Definition on_global_env_ext (Σ : global_env_ext) :=
-      on_global_env Σ.1 × on_udecl Σ.(universes) Σ.2.
-
+    #[export] Instance quote_on_proj {mdecl mind i k p decl} : ground_quotable (@on_proj mdecl mind i k p decl) := ltac:(destruct 1; cbv [proj_type] in *; exact _).
+    #[export] Instance quote_on_projection {mdecl mind i cdecl k p} : ground_quotable (@on_projection mdecl mind i cdecl k p) := ltac:(cbv [on_projection]; exact _).
+    #[export] Instance quote_on_projections {mdecl mind i idecl ind_indices cdecl} : ground_quotable (@on_projections mdecl mind i idecl ind_indices cdecl) := ltac:(destruct 1; cbv [on_projection] in *; exact _).
+    #[export] Instance quote_check_ind_sorts {Σ params kelim ind_indices cdecls ind_sort} : ground_quotable (@check_ind_sorts cf P Σ params kelim ind_indices cdecls ind_sort) := ltac:(cbv [check_ind_sorts check_constructors_smaller global_ext_constraints global_constraints] in *; exact _).
+    #[export] Instance quote_on_ind_body {Σ mind mdecl i idecl} : ground_quotable (@on_ind_body cf Pcmp P Σ mind mdecl i idecl) := ltac:(destruct 1; cbv [it_mkProd_or_LetIn mkProd_or_LetIn ind_indices ind_sort] in *; exact _).
+    #[export] Instance quote_on_variance {Σ univs variances} : ground_quotable (@on_variance cf Σ univs variances) := ltac:(cbv [on_variance consistent_instance_ext consistent_instance global_ext_constraints global_constraints]; exact _).
+    #[export] Instance quote_on_inductive {Σ mind mdecl} : ground_quotable (@on_inductive cf Pcmp P Σ mind mdecl) := ltac:(destruct 1; exact _).
+    #[export] Instance quote_on_constant_decl {Σ d} : ground_quotable (@on_constant_decl P Σ d) := ltac:(cbv [on_constant_decl]; exact _).
+    #[export] Instance quote_on_global_decl {Σ kn d} : ground_quotable (@on_global_decl cf Pcmp P Σ kn d) := ltac:(cbv [on_global_decl]; exact _).
+    #[export] Instance quote_on_global_decls_data {univs retro Σ kn d} : ground_quotable (@on_global_decls_data cf Pcmp P univs retro Σ kn d) := ltac:(destruct 1; exact _).
+    #[export] Instance quote_on_global_decls {univs retro Σ} : ground_quotable (@on_global_decls cf Pcmp P univs retro Σ) := ltac:(induction 1; exact _).
+    #[export] Instance quote_on_global_univs {univs} : ground_quotable (@on_global_univs univs) := ltac:(cbv [on_global_univs]; exact _).
+    #[export] Instance quote_on_global_env {g} : ground_quotable (@on_global_env cf Pcmp P g) := ltac:(cbv [on_global_env]; exact _).
+    #[export] Instance quote_on_global_env_ext {Σ} : ground_quotable (@on_global_env_ext cf Pcmp P Σ) := ltac:(cbv [on_global_env_ext]; exact _).
   End GlobalMaps.
 
-  Arguments cstr_args_length {_ Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs}.
-  Arguments cstr_eq {_ Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs}.
-  Arguments on_ctype {_ Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs}.
-  Arguments on_cargs {_ Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs}.
-  Arguments on_cindices {_ Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs}.
-  Arguments on_ctype_positive {_ Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs}.
-  Arguments on_ctype_variance {_ Pcmp P Σ mdecl i idecl ind_indices cdecl cunivs}.
+  Module Instances.
+    #[export] Existing Instances
+     quote_on_context
+     qtype_local_ctx
+     qsorts_local_ctx
+     qunivs_ext_constraints
+     qsatisfiable_udecl
+     qvalid_on_mono_udecl
+     qsubst_instance_context
+     qarities_context
+     qind_arities
+     qlift_level
+     qlift_constraint
+     qlift_constraints
+     qlift_instance
+     qvariance_cstrs
+     qlevel_var_instance
+     qvariance_universes
+     qcstr_respects_variance
+     qconstructor_univs
+     qind_respects_variance
+     qon_global_univs
+     qon_udecl
+     qon_global_env
+     quote_constructor_univs
+     quote_type_local_ctx
+     quote_sorts_local_ctx
+     quote_on_type
+     quote_on_udecl
+     quote_satisfiable_udecl
+     quote_valid_on_mono_udecl
+     quote_positive_cstr_arg
+     quote_positive_cstr
+     quote_ind_respects_variance
+     quote_cstr_respects_variance
+     quote_on_constructor
+     quote_on_proj
+     quote_on_projection
+     quote_on_projections
+     quote_check_ind_sorts
+     quote_on_ind_body
+     quote_on_variance
+     quote_on_inductive
+     quote_on_constant_decl
+     quote_on_global_decl
+     quote_on_global_decls_data
+     quote_on_global_decls
+     quote_on_global_univs
+     quote_on_global_env
+     quote_on_global_env_ext
+    .
+  End Instances.
+End QuoteGlobalMaps.
 
-  Arguments ind_arity_eq {_ Pcmp P Σ mind mdecl i idecl}.
-  Arguments ind_cunivs {_ Pcmp P Σ mind mdecl i idecl}.
-  Arguments onArity {_ Pcmp P Σ mind mdecl i idecl}.
-  Arguments onConstructors {_ Pcmp P Σ mind mdecl i idecl}.
-  Arguments onProjections {_ Pcmp P Σ mind mdecl i idecl}.
-  Arguments ind_sorts {_ Pcmp P Σ mind mdecl i idecl}.
-  Arguments onIndices {_ Pcmp P Σ mind mdecl i idecl}.
+Module Type QuoteConversionPar (T : Term) (E : EnvironmentSig T) (TU : TermUtils T E) (ET : EnvTypingSig T E TU) (Import CS : ConversionParSig T E TU ET).
+  #[export] Declare Instance qcumul_gen : quotation_of (@cumul_gen).
+  #[export] Declare Instance quote_cumul_gen {cf Σ Γ pb t t'} : ground_quotable (@cumul_gen cf Σ Γ pb t t').
+End QuoteConversionPar.
 
-  Arguments onInductives {_ Pcmp P Σ mind mdecl}.
-  Arguments onParams {_ Pcmp P Σ mind mdecl}.
-  Arguments onNpars {_ Pcmp P Σ mind mdecl}.
-  Arguments onVariance {_ Pcmp P Σ mind mdecl}.
+Module Type QuoteTyping (T : Term) (E : EnvironmentSig T) (TU : TermUtils T E) (ET : EnvTypingSig T E TU)
+       (CT : ConversionSig T E TU ET) (CS : ConversionParSig T E TU ET) (Import Ty : Typing T E TU ET CT CS).
 
+  #[export] Declare Instance qtyping : quotation_of (@typing).
+  #[export] Declare Instance quote_typing {cf Σ Γ t T} : ground_quotable (@typing cf Σ Γ t T).
+End QuoteTyping.
 
-  Lemma type_local_ctx_impl (P Q : global_env_ext -> context -> term -> typ_or_sort -> Type) Σ Γ Δ u :
-    type_local_ctx P Σ Γ Δ u ->
-    (forall Γ t T, P Σ Γ t T -> Q Σ Γ t T) ->
-    type_local_ctx Q Σ Γ Δ u.
-  Proof.
-    intros HP HPQ. revert HP; induction Δ in Γ, HPQ |- *; simpl; auto.
-    destruct a as [na [b|] ty]; simpl; auto.
-    intros. intuition auto. intuition auto.
-  Qed.
+Fail Module Type DeclarationTypingSig := DeclarationTypingSig.
+Module Type DeclarationTypingSig (T : Term) (E : EnvironmentSig T) (TU : TermUtils T E)
+       (ET : EnvTypingSig T E TU) (CT : ConversionSig T E TU ET)
+       (CS : ConversionParSig T E TU ET) (Ty : Typing T E TU ET CT CS)
+       (L : LookupSig T E) (GM : GlobalMapsSig T E TU ET CT L).
+  Include DeclarationTyping T E TU ET CT CS Ty L GM.
+End DeclarationTypingSig.
 
-  Lemma sorts_local_ctx_impl (P Q : global_env_ext -> context -> term -> typ_or_sort -> Type) Σ Γ Δ u :
-    sorts_local_ctx P Σ Γ Δ u ->
-    (forall Γ t T, P Σ Γ t T -> Q Σ Γ t T) ->
-    sorts_local_ctx Q Σ Γ Δ u.
-  Proof.
-    intros HP HPQ. revert HP; induction Δ in Γ, HPQ, u |- *; simpl; auto.
-    destruct a as [na [b|] ty]; simpl; auto.
-    intros. intuition auto. intuition auto.
-    destruct u; auto. intuition eauto.
-  Qed.
+Module QuoteDeclarationTyping (Import T : Term) (Import E : EnvironmentSig T) (Import TU : TermUtils T E)
+       (Import ET : EnvTypingSig T E TU) (Import CT : ConversionSig T E TU ET)
+       (Import CS : ConversionParSig T E TU ET) (Import Ty : Typing T E TU ET CT CS)
+       (Import L : LookupSig T E) (Import GM : GlobalMapsSig T E TU ET CT L)
+       (Import DT : DeclarationTypingSig T E TU ET CT CS Ty L GM)
+       (Import QT : QuoteTerm T) (Import QoE : QuotationOfEnvironment T E) (Import QoET : QuotationOfEnvTyping T E TU ET) (Import QoC : QuotationOfConversion T E TU ET CT) (Import QoGM :  QuotationOfGlobalMaps T E TU ET CT L GM) (Import QTy : QuoteTyping T E TU ET CT CS Ty).
+  Module Import QE := QuoteEnvironment T E QT QoE.
+  Module Import QET := QuoteEnvTyping T E TU ET QT QoE QoET.
+  Module Import QC := QuoteConversion T E TU ET CT QT QoE QoC.
+  Module Import QL := QuoteLookup T E L QT QoE.
+  Module Import QGM := QuoteGlobalMaps T E TU ET CT L GM QT QoE QoET QoC QoGM.
 
-  Lemma on_global_env_impl {cf : checker_flags} Pcmp P Q :
-    (forall Σ Γ t T,
-        on_global_env Pcmp P Σ.1 ->
-        on_global_env Pcmp Q Σ.1 ->
-        P Σ Γ t T -> Q Σ Γ t T) ->
-    forall Σ, on_global_env Pcmp P Σ -> on_global_env Pcmp Q Σ.
-  Proof.
-    intros X Σ [cu IH]. split; auto.
-    revert cu IH; generalize (universes Σ) as univs, (retroknowledge Σ) as retro, (declarations Σ). clear Σ.
-    induction g; intros; auto. constructor; auto.
-    depelim IH. specialize (IHg cu IH). constructor; auto.
-    pose proof (globenv_decl _ _ _ _ _ _ _ IH o).
-    destruct o. constructor; auto.
-    assert (X' := fun Γ t T => X ({| universes := univs; declarations := _ |}, udecl0) Γ t T
-      (cu, IH) (cu, IHg)); clear X.
-    rename X' into X.
-    clear IH IHg. destruct d; simpl.
-    - destruct c; simpl. destruct cst_body0; cbn in *; now eapply X.
-    - destruct on_global_decl_d0 as [onI onP onNP].
-      constructor; auto.
-      -- eapply Alli_impl; tea. intros.
-        refine {| ind_arity_eq := X1.(ind_arity_eq);
-                  ind_cunivs := X1.(ind_cunivs) |}.
-        --- apply onArity in X1. unfold on_type in *; simpl in *.
-            now eapply X.
-        --- pose proof X1.(onConstructors) as X11. red in X11.
-            eapply All2_impl; eauto.
-            simpl. intros. destruct X2 as [? ? ? ?]; unshelve econstructor; eauto.
-            * apply X; eauto.
-            * clear -X0 X on_cargs0. revert on_cargs0.
-              generalize (cstr_args x0).
-              induction c in y |- *; destruct y; simpl; auto;
-                destruct a as [na [b|] ty]; simpl in *; auto;
-            split; intuition eauto.
-            * clear -X0 X on_cindices0.
-              revert on_cindices0.
-              generalize (List.rev (lift_context #|cstr_args x0| 0 (ind_indices x))).
-              generalize (cstr_indices x0).
-              induction 1; simpl; constructor; auto.
-        --- simpl; intros. pose (onProjections X1) as X2. simpl in *; auto.
-        --- destruct X1. simpl. unfold check_ind_sorts in *.
-            destruct Universe.is_prop; auto.
-            destruct Universe.is_sprop; auto.
-            split.
-            * apply ind_sorts0.
-            * destruct indices_matter; auto.
-              eapply type_local_ctx_impl; eauto.
-              eapply ind_sorts0.
-        --- eapply X1.(onIndices).
-      -- red in onP. red.
-        eapply All_local_env_impl; tea.
-  Qed.
-
-End GlobalMaps.
-
-
-
-
-
-
-  #[export] Instance declared_inductive {Σ ind mdecl decl} : ground_quotable (declared_inductive Σ ind mdecl decl) := _.
-  try exact _.
-
-(* Distributed under the terms of the MIT license. *)
-From Coq Require Import ssreflect ssrbool.
-From MetaCoq.Template Require Import config utils BasicAst Universes Environment Primitive.
-From Equations Require Import Equations.
-
-Module Lookup (T : Term) (E : EnvironmentSig T).
-
-  Import T E.
-
-  (** ** Environment lookup *)
-
-  Definition declared_constant (Σ : global_env) (id : kername) decl : Prop :=
-    lookup_env Σ id = Some (ConstantDecl decl).
-
-  Definition declared_minductive Σ mind decl :=
-    lookup_env Σ mind = Some (InductiveDecl decl).
-
-  Definition declared_inductive Σ ind mdecl decl :=
-    declared_minductive Σ (inductive_mind ind) mdecl /\
-    List.nth_error mdecl.(ind_bodies) (inductive_ind ind) = Some decl.
-
-  Definition declared_constructor Σ cstr mdecl idecl cdecl : Prop :=
-    declared_inductive Σ (fst cstr) mdecl idecl /\
-    List.nth_error idecl.(ind_ctors) (snd cstr) = Some cdecl.
-
-  Definition declared_projection Σ (proj : projection) mdecl idecl cdecl pdecl
-  : Prop :=
-    declared_constructor Σ (proj.(proj_ind), 0) mdecl idecl cdecl /\
-    List.nth_error idecl.(ind_projs) proj.(proj_arg) = Some pdecl /\
-    mdecl.(ind_npars) = proj.(proj_npars).
-
-
-End Lookup.
-
-
-
-Module Type GlobalMapsSig (T: Term) (E: EnvironmentSig T) (TU : TermUtils T E) (ET: EnvTypingSig T E TU) (C: ConversionSig T E TU ET) (L: LookupSig T E).
-  Include GlobalMaps T E TU ET C L.
-End GlobalMapsSig.
-
-Module Type ConversionParSig (T : Term) (E : EnvironmentSig T) (TU : TermUtils T E) (ET : EnvTypingSig T E TU).
-
-  Import T E TU ET.
-
-  Parameter Inline cumul_gen : forall {cf : checker_flags}, global_env_ext -> context -> conv_pb -> term -> term -> Type.
-
-End ConversionParSig.
-
-Module Type Typing (T : Term) (E : EnvironmentSig T) (TU : TermUtils T E) (ET : EnvTypingSig T E TU)
-  (CT : ConversionSig T E TU ET) (CS : ConversionParSig T E TU ET).
-
-  Import T E TU ET CT CS.
-
-  Parameter Inline typing : forall `{checker_flags}, global_env_ext -> context -> term -> term -> Type.
-
-  Notation " Σ ;;; Γ |- t : T " :=
-    (typing Σ Γ t T) (at level 50, Γ, t, T at next level) : type_scope.
-
-  Notation wf_local Σ Γ := (All_local_env (lift_typing Σ) Γ).
-
-End Typing.
-
-Module DeclarationTyping (T : Term) (E : EnvironmentSig T) (TU : TermUtils T E)
-  (ET : EnvTypingSig T E TU) (CT : ConversionSig T E TU ET)
-  (CS : ConversionParSig T E TU ET) (Ty : Typing T E TU ET CT CS)
-  (L : LookupSig T E) (GM : GlobalMapsSig T E TU ET CT L).
-
-  Import T E L TU ET CT GM CS Ty.
-
-  Definition isType `{checker_flags} (Σ : global_env_ext) (Γ : context) (t : term) :=
-    infer_sort (typing_sort typing) Σ Γ t.
-
-  (** This predicate enforces that there exists typing derivations for every typable term in env. *)
-
-  Definition Forall_decls_typing `{checker_flags}
-            (P : global_env_ext -> context -> term -> term -> Type)
-    := on_global_env cumul_gen (lift_typing P).
-
-  (** *** Typing of local environments *)
-
-  Definition type_local_decl `{checker_flags} Σ Γ d :=
-    match d.(decl_body) with
-    | None => isType Σ Γ d.(decl_type)
-    | Some body => Σ ;;; Γ |- body : d.(decl_type)
-    end.
-
-  (** ** Induction principle for typing up-to a global environment *)
-
-  Lemma refine_type `{checker_flags} Σ Γ t T U : Σ ;;; Γ |- t : T -> T = U -> Σ ;;; Γ |- t : U.
-  Proof. now intros Ht ->. Qed.
-
-  Definition wf_local_rel `{checker_flags} Σ := All_local_rel (lift_typing typing Σ).
-
-  (** Functoriality of global environment typing derivations + folding of the well-formed
-    environment assumption. *)
-  Lemma on_wf_global_env_impl `{checker_flags} {Σ : global_env} {wfΣ : on_global_env cumul_gen (lift_typing typing) Σ} P Q :
-    (forall Σ Γ t T, on_global_env cumul_gen (lift_typing typing) Σ.1 ->
-        on_global_env cumul_gen P Σ.1 ->
-        on_global_env cumul_gen Q Σ.1 ->
-        P Σ Γ t T -> Q Σ Γ t T) ->
-    on_global_env cumul_gen P Σ -> on_global_env cumul_gen Q Σ.
-  Proof.
-    unfold on_global_env in *.
-    intros X [hu X0]. split; auto.
-    simpl in *. destruct wfΣ as [cu wfΣ]. revert cu wfΣ.
-    revert X0. generalize (universes Σ) as univs, (retroknowledge Σ) as retro, (declarations Σ). clear hu Σ.
-    induction 1; constructor; try destruct o; try constructor; auto.
-    { depelim wfΣ. eauto. }
-    depelim wfΣ. specialize (IHX0 cu wfΣ). destruct o.
-    assert (X' := fun Γ t T => X ({| universes := univs; declarations := Σ |}, udecl0) Γ t T
-      (cu, wfΣ) (cu, X0) (cu, IHX0)); clear X.
-    rename X' into X.
-    clear IHX0. destruct d; simpl.
-    - destruct c; simpl. destruct cst_body0; simpl in *; now eapply X.
-    - simpl in *. destruct on_global_decl_d0 as [onI onP onNP].
-      constructor; auto.
-      -- eapply Alli_impl; tea. intros.
-        refine {| ind_arity_eq := X1.(ind_arity_eq);
-                  ind_cunivs := X1.(ind_cunivs) |}.
-        --- apply onArity in X1. unfold on_type in *; simpl in *.
-            now eapply X.
-        --- pose proof X1.(onConstructors) as X11. red in X11.
-            eapply All2_impl; eauto.
-            simpl. intros. destruct X2 as [? ? ? ?]; unshelve econstructor; eauto.
-            * apply X; eauto.
-            * clear -X0 X on_cargs0. revert on_cargs0.
-              generalize (cstr_args x0).
-              induction c in y |- *; destruct y; simpl; auto;
-                destruct a as [na [b|] ty]; simpl in *; auto;
-            split; intuition eauto.
-            * clear -X0 X on_cindices0.
-              revert on_cindices0.
-              generalize (List.rev (lift_context #|cstr_args x0| 0 (ind_indices x))).
-              generalize (cstr_indices x0).
-              induction 1; simpl; constructor; auto.
-        --- simpl; intros. pose (onProjections X1). simpl in *; auto.
-        --- destruct X1. simpl. unfold check_ind_sorts in *.
-            destruct Universe.is_prop; auto.
-            destruct Universe.is_sprop; auto.
-            split.
-            * apply ind_sorts0.
-            * destruct indices_matter; auto.
-              eapply type_local_ctx_impl; eauto.
-              eapply ind_sorts0.
-        --- eapply X1.(onIndices).
-      -- red in onP. red.
-        eapply All_local_env_impl; tea.
-  Qed.
-
-End DeclarationTyping.
+  Import StrongerInstances.
+  #[export] Instance quote_type_local_decl {cf Σ Γ d} : ground_quotable (@type_local_decl cf Σ Γ d) := ltac:(cbv [type_local_decl isType]; exact _).
+  #[export] Instance quote_wf_local_rel {cf Σ Γ Γ'} : ground_quotable (@wf_local_rel cf Σ Γ Γ') := _.
+  Module Instances.
+    #[export] Existing Instances
+     quote_type_local_decl
+     quote_wf_local_rel
+    .
+  End Instances.
+End QuoteDeclarationTyping.

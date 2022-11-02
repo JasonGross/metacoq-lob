@@ -52,7 +52,7 @@ Module QuoteWSetsOn (E : DecidableType) (Import W : WSetsOn E).
       Defined.
       #[export] Instance qFor_all : quotation_of For_all := ltac:(cbv [For_all]; exact _).
       #[export] Instance qExists : quotation_of Exists := ltac:(cbv [Exists]; exact _).
-      #[export] Instance quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} {qs : quotation_of s} : ground_quotable (For_all P s)
+      Definition quote_For_all {P s} {quote_elt : ground_quotable elt} {quote_P : forall x, ground_quotable (P x:Prop)} {qP : quotation_of P} {P_Proper : Proper (E.eq ==> Basics.impl) P} {qP_Proper : quotation_of P_Proper} {qs : quotation_of s} : ground_quotable (For_all P s)
         := ground_quotable_of_iff For_all_alt_iff.
       Lemma For_all_forall_iff {P s} : (For_all P s) <-> (forall v, In v s -> P v).
       Proof using Type. reflexivity. Qed.
@@ -99,9 +99,10 @@ Module QuoteWSetsOn (E : DecidableType) (Import W : WSetsOn E).
      quote_neg_Subset
      quote_neg_Empty
      quote_neg_Add
-     quote_For_all
      quote_forall2_In
     .
+    #[export] Hint Extern 9 (ground_quotable (For_all _ _))
+    => simple notypeclasses refine (@quote_For_all _ _ _ _ _ _ _ _ _ _ _) : typeclass_instances.
   End Instances.
 End QuoteWSetsOn.
 
