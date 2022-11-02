@@ -8,6 +8,7 @@ theories/Template/Decidable/Universes.v
 theories/Template/Decidable/common/uGraph.v
 theories/Template/QuoteGround.v
 theories/Template/QuoteGround/Ast.v
+theories/Template/QuoteGround/AstUtils.v
 theories/Template/QuoteGround/BasicAst.v
 theories/Template/QuoteGround/Coq/Bool.v
 theories/Template/QuoteGround/Coq/FSets.v
@@ -24,7 +25,11 @@ theories/Template/QuoteGround/Environment.v
 theories/Template/QuoteGround/EnvironmentTyping.v
 theories/Template/QuoteGround/Init.v
 theories/Template/QuoteGround/Kernames.v
+theories/Template/QuoteGround/LiftSubst.v
 theories/Template/QuoteGround/Primitive.v
+theories/Template/QuoteGround/Reflect.v
+theories/Template/QuoteGround/ReflectAst.v
+theories/Template/QuoteGround/UnivSubst.v
 theories/Template/QuoteGround/Universes.v
 theories/Template/QuoteGround/config.v
 theories/Template/QuoteGround/monad_utils.v

@@ -1,5 +1,6 @@
 From MetaCoq.Lob.Template.QuoteGround Require Export Coq.Init Coq.Floats Coq.Numbers Kernames utils.
-From MetaCoq.Template Require Import BasicAst.
+From MetaCoq.Template Require Import BasicAst AstUtils.
+From MetaCoq.Lob.Util.Tactics Require Import DestructHead.
 
 #[export] Instance quote_name : ground_quotable name := ltac:(destruct 1; exact _).
 #[export] Instance quote_relevance : ground_quotable relevance := ltac:(destruct 1; exact _).
@@ -11,3 +12,4 @@ From MetaCoq.Template Require Import BasicAst.
 #[export] Instance quote_def {term} {qterm : quotation_of term} {quote_term : ground_quotable term} : ground_quotable (def term) := ltac:(destruct 1; exact _).
 #[export] Instance quote_typ_or_sort_ {term} {qterm : quotation_of term} {quote_term : ground_quotable term} : ground_quotable (typ_or_sort_ term) := ltac:(destruct 1; exact _).
 #[export] Instance quote_context_decl {term} {qterm : quotation_of term} {quote_term : ground_quotable term} : ground_quotable (context_decl term) := ltac:(destruct 1; exact _).
+#[export] Instance quotation_of_mfixpoint {term} {m : mfixpoint term} {qterm : quotation_of term} {qm : tFixType quotation_of quotation_of m} : quotation_of m := ltac:(induction qm; destruct_head'_prod; destruct_head' def; exact _).

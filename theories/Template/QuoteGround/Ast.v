@@ -1,13 +1,10 @@
 From MetaCoq.Lob.Template.QuoteGround Require Export utils Environment EnvironmentTyping Universes BasicAst.
-From MetaCoq.Template Require Import Ast.
+From MetaCoq.Template Require Import Ast Induction.
 
 #[export] Instance quote_predicate {term} {qterm : quotation_of term} {quote_term : ground_quotable term} : ground_quotable (predicate term) := ltac:(destruct 1; exact _).
 #[export] Instance quote_branch {term} {qterm : quotation_of term} {quote_term : ground_quotable term} : ground_quotable (branch term) := ltac:(destruct 1; exact _).
-#[export] Instance quote_term : ground_quotable term.
-Proof.
-  cbv [ground_quotable]; fix quote_term 1; change (ground_quotable term) in quote_term.
-  destruct t; exact _.
-Defined.
+#[local] Hint Extern 1 => assumption : typeclass_instances.
+#[export] Instance quote_term : ground_quotable term := ltac:(induction 1 using term_forall_list_rect; exact _).
 
 Module QuoteTemplateTerm <: QuoteTerm TemplateTerm.
   #[export] Instance qterm : quotation_of TemplateTerm.term := _.

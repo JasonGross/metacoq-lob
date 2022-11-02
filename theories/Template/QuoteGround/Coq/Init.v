@@ -1,6 +1,7 @@
 Require Import Coq.Lists.List.
 From MetaCoq.Lob.Template Require Export QuoteGround.Init.
 From MetaCoq.Template Require Export utils.ReflectEq.
+From MetaCoq.Template Require Import utils.All_Forall.
 Require Import Equations.Prop.Classes.
 Import ListNotations.
 
@@ -57,6 +58,7 @@ Defined.
 #[export] Instance quote_sum {A B} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (sum A B) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_prod {A B} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (prod A B) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_list {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (list A) := (ltac:(induction 1; exact _)).
+#[export] Instance quotation_of_list {A ls} {qA : quotation_of A} {qls : @All A quotation_of ls} : quotation_of ls := ltac:(induction qls; exact _).
 #[export] Instance quote_comparison : ground_quotable comparison := ltac:(destruct 1; exact _).
 #[export] Instance quote_CompareSpec {Peq Plt Pgt : Prop} {qPeq : quotation_of Peq} {qPlt : quotation_of Plt} {qPgt : quotation_of Pgt} {quote_Peq : ground_quotable Peq} {quote_Plt : ground_quotable Plt} {quote_Pgt : ground_quotable Pgt} {c} : ground_quotable (CompareSpec Peq Plt Pgt c).
 Proof.
