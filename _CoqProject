@@ -7,6 +7,7 @@ theories/Template/Decidable/EnvironmentTyping.v
 theories/Template/Decidable/Universes.v
 theories/Template/Decidable/common/uGraph.v
 theories/Template/QuoteGround.v
+theories/Template/QuoteGround/Ast.v
 theories/Template/QuoteGround/BasicAst.v
 theories/Template/QuoteGround/Coq/Bool.v
 theories/Template/QuoteGround/Coq/FSets.v
