@@ -32,6 +32,7 @@ theories/Template/QuoteGround/Reflect.v
 theories/Template/QuoteGround/ReflectAst.v
 theories/Template/QuoteGround/TermEquality.v
 theories/Template/QuoteGround/Typing.v
+theories/Template/QuoteGround/TypingWf.v
 theories/Template/QuoteGround/UnivSubst.v
 theories/Template/QuoteGround/Universes.v
 theories/Template/QuoteGround/WfAst.v
