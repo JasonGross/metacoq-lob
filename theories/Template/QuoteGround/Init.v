@@ -283,24 +283,11 @@ Ltac adjust_ground_quotable_by_econstructor_inversion _ :=
   intro pf;
   adjust_quotation_of_by_econstructor_then ltac:(fun _ => inversion pf; try assumption) ltac:(fun _ => try exact _).
 
-Module config.
-  Class typing_restriction
-    := { checker_flags_constraint : config.checker_flags -> bool
-       ; global_env_ext_constraint : global_env_ext -> bool }.
-End config.
-#[local] Existing Instance quote_ground.
-Class quotation_of_well_typed {Pcf : config.typing_restriction} {T} (t : T) {qT : quotation_of T} {qt : quotation_of t} := typing_quoted_term_of : forall cf Σ Γ, config.checker_flags_constraint cf -> config.global_env_ext_constraint Σ -> Σ ;;; Γ |- qt : qT.
-Class ground_quotable_well_typed {Pcf : config.typing_restriction} T {qT : quotation_of T} {quoteT : ground_quotable T} := typing_quote_ground : forall t : T, quotation_of_well_typed t.
-
 Module Export Instances.
   (* some performance settings *)
   #[export] Set Typeclasses Unique Instances.
   #[export] Instance default_debug : debug_opt | 1000 := false.
-  #[export] Instance default_typing_restriction : config.typing_restriction | 1000
-    := {| config.checker_flags_constraint cf := true
-       ; config.global_env_ext_constraint Σ := true |}.
   #[export] Existing Instance quote_ground.
-  #[export] Existing Instance typing_quote_ground.
   #[export] Typeclasses Opaque quotation_of.
   #[export]
    Hint Extern 1 (quotation_of match ?t with _ => _ end) => is_var t; destruct t : typeclass_instances.

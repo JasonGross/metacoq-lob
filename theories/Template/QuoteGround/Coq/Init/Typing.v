@@ -1,120 +1,122 @@
 Require Import Coq.Lists.List.
-From MetaCoq.Template Require Export Typing utils.bytestring.
+From MetaCoq.Template Require Import Typing.
+From MetaCoq.Lob.Template Require Export QuoteGround.Init.Typing.
 From MetaCoq.Lob.Template.QuoteGround Require Export Coq.Init.
 From MetaCoq.Lob.Util.Tactics Require Import
      Head
 .
+From Coq.ssr Require Import ssreflect ssrbool.
+
 Import ListNotations.
 
-#[export] Instance quote_True_well_typed : ground_quotable_well_typed True.
+Import Universes.
+Lemma use_fold_right_andb_true {ls} (H : is_true (fold_right andb true ls)) {P}
+  : fold_right (fun b acc => is_true b -> acc) P ls -> P.
 Proof.
-  intro t; destruct t; hnf.
+  revert P; induction ls; cbn in *; eauto.
+  move: H.
+  case/andP => //.
   intros.
-  vm_compute quote_ground.
+  apply IHls; eauto.
+Qed.
+
+Ltac pre_begin_ground_quotable_well_typed _ :=
+  let t := fresh "t" in
+  intro t; hnf; intros; revert dependent t;
+  cbv [config.global_env_ext_constraint] in *.
+
+Ltac handle_env_constraints _ :=
+  progress repeat match goal with
+                  | [ H : is_true (fold_right andb true ?ls) |- ?P ]
+                    => apply (@use_fold_right_andb_true ls H P); cbn [fold_right map]; clear H
+                  end;
   repeat match goal with
-         | [ |- _ ;;; _ |- ?t : _ ]
-           => let h := head t in
-              is_constructor h;
-              econstructor
+         | [ |- is_true (@eqb ?A ?r ?x ?y) -> _ ]
+           => let H := fresh in
+              intro H; apply eqb_eq in H
          end.
-  all: cbn.
-  2: {
-    cbv [Ast.declared_constructor Ast.declared_inductive Ast.declared_minductive]; cbn.
-    Print Ast.Env.InductiveDecl.
-    Print Ast.Env.mutual_inductive_body.
-    Print Template.Universes.universes_decl.
-    Print Template.Universes.AUContext.t.
-    Print Template.Universes.ConstraintSet.t.
-    Print Template.Universes.ConstraintSet.t_.
-    (*
-    Print Ast.Env.InductiveDecl.
-    Locate global_decl.
-    Print Template.Universes.ConstraintSet.Equal.
 
-    Search Ast.Env.global_decl.
-    cbn.
-    cbv [].
-    cbn.
-    cbv [].
-    cbn.
-    Import Template.All.
-    Import MCMonadNotation.
-    pose (let t := True in
-          qt <- tmQuote t;;
-          mind <- match qt with
-                  | tInd {| inductive_mind := mind |} _ => ret mind
-                  | _ => tmPrint ("ensure present not inductive"%bs, qt);; tmFail "ensure present not inductive"%bs
-                  end;;
-          ind <- tmQuoteInductive mind;;
-          tmPrint ind;;
-          ret (fun Σ : global_env_ext
-               => match lookup_env Σ.1 mind with
-                  | Some (InductiveDecl mdecl)
-                    => true
-                  | _ => false
-                  end)) as p.
-    run_template_program p (fun v => idtac v).
-    (*
-    Print ind_finite.
-    Search mutual_inductive_body "dec".
-    Search (mutual_inductive_body -> mutual_inductive_body -> sumbool _ _).
-          pose <% True %>.
-    run_template_program (tmQuoteInductive (Kernames.MPfile ["Logic"%bs; "Init"%bs; "Coq"%bs], "True"%bs)) (fun v => idtac v).
-    Print ind_bodies.
-    Print Ast.Env.lookup_env.
-    cbv [
-  Print
-  Print Ast.declared_minductive.
-  Print Ast.Env.lookup_env.
-  9 : { cbv [Universes.subst_instance].
-        cbn.
-        cbv [Ast.subst_instance_constr].
-              | Ast.tConstruct _ _ _ => econstructor
-              | Ast.tInd _ _ => econstructor
-              | Ast.tSort _ => econstructor
-              end
-         end.
-  cbv [quotation_of_well_typed].
-  destruct 1.
-  intro t.
-cbv [quotation_of_well_typed].
-intros.
-cbv [quote_ground].
-cbv [quote_True].
-destruct t.
+Ltac begin_ground_quotable_well_typed _ :=
+  let t := fresh "t" in
+  intro t; destruct t; vm_compute quote_ground.
 
-all: repeat match goal with
-            | [ |- _ ;;; _ |- _ : _ ] => econstructor
-            | [ |- _ ;;; _ |- _ <= _ ] => econstructor
-            end.
-10: cbv [type_of_constructor].
-10: cbn.
+Ltac ground_quotable_well_typed_step _ :=
+  first [ match goal with
+          | [ |- _ ;;; _ |- ?t : _ ]
+            => let h := head t in
+               is_constructor h;
+               econstructor
+          | [ |- _ ;;; _ |- ?t <= _ ]
+            => let h := head t in
+               is_constructor h;
+               econstructor
+          | [ |- TermEquality.compare_term _ _ _ ?t _ ]
+            => let h := head t in
+               is_constructor h;
+               econstructor
+          | [ H : wf_local _ _ |- wf_local _ _ ]
+            => exact H
+          end
+        | progress cbv [Ast.declared_constructor Ast.declared_inductive Ast.declared_minductive]
+        | progress cbv [TermEquality.R_global_instance TermEquality.R_opt_variance TermEquality.global_variance TermEquality.lookup_inductive Ast.Env.fst_ctx TermEquality.lookup_minductive TermEquality.R_universe_instance]
+        | match goal with
+          | [ H : ?x = Some _ |- context[?x] ]
+            => rewrite H
+          | [ |- _ /\ _ ] => split
+          | [ |- Some _ = Some _ ] => reflexivity
+          | [ |- ?x = ?x ] => reflexivity
+          | [ |- Forall2 _ nil nil ] => constructor
+          | [ |- match ?ev with
+                 | Universe.lProp => ?x = ?x
+                 | _ => _
+                 end ]
+            => unify ev Universe.lProp
+          | [ |- match ?ev with Universe.lType _ => _ | Universe.lProp => False | Universe.lSProp => False end ]
+            => let ev' := open_constr:(Universe.lType _) in unify ev ev'
+          | [ |- match ?ev with Universe.lType _ => False | Universe.lProp => _ | Universe.lSProp => False end ]
+            => unify ev Universe.lProp
+          | [ |- match ?ev with Universe.lType _ => False | Universe.lProp => False | Universe.lSProp => _ end ]
+            => unify ev Universe.lSProp
+          end
+        | exact I
+        | progress cbn ].
 
-10: {
-econstructor.
-econstructor.
-4: econstructor.
-5: econstructor.
-4: econstructor.
-10: econstructor.
-2: { hnf.
-     Print declared_inductive.
-     cbv [declared_inductive].
-     cbv.
-eapply type_Construct.
-Print typing.
-econstructor.
+Ltac make_ground_quotable_well_typed _ :=
+  pre_begin_ground_quotable_well_typed ();
+  handle_env_constraints ();
+  begin_ground_quotable_well_typed ();
+  repeat repeat ground_quotable_well_typed_step ().
 
-
-
-#[export] Instance quote_True : ground_quotable True := ltac:(destruct 1; exact _).
+#[export] Instance quote_True_well_typed : ground_quotable_well_typed_using [True] True := ltac:(make_ground_quotable_well_typed ()).
+#[export] Instance quote_False_well_typed : ground_quotable_well_typed_using [False] False := ltac:(make_ground_quotable_well_typed ()).
+#[export] Instance quote_byte_well_typed : ground_quotable_well_typed_using [Byte.byte] Byte.byte.
+pre_begin_ground_quotable_well_typed ().
+handle_env_constraints ().
+begin_ground_quotable_well_typed ().
+all: ground_quotable_well_typed_step ().
+all: try ground_quotable_well_typed_step ().
+all: try ground_quotable_well_typed_step ().
+Abort.
+(*
+2: repeat repeat ground_quotable_well_typed_step ().
+3: repeat repeat ground_quotable_well_typed_step ().
+2: { cbv [leq_levelalg_n].
+     cbv [leq0_levelalg_n].
+     cbv [NonEmptySetFacts.singleton].
+2: { Print Universe.lType.
+     match goal with
+  end.
+repeat repeat ground_quotable_well_typed_step ().
+introduce
+  := ltac:(make_ground_quotable_well_typed ()).
+(*
 #[export] Instance quote_False : ground_quotable False := ltac:(destruct 1; exact _).
 #[export] Instance quote_byte : ground_quotable Byte.byte := ltac:(destruct 1; exact _).
 #[export] Instance quote_Empty_set : ground_quotable Empty_set := ltac:(destruct 1; exact _).
 #[export] Instance quote_unit : ground_quotable unit := ltac:(destruct 1; exact _).
 #[export] Instance quote_bool : ground_quotable bool := ltac:(destruct 1; exact _).
 
-#[export] Instance quote_eq {A} {qA : quotation_of A} {qA : ground_quotable A} {x y : A} : ground_quotable (x = y :> A) := ltac:(intros []; exact _).
+#[export] Instance quote_eq {A} {qA : quotation_of A} {quoteA : ground_quotable A} {x y : A} : ground_quotable (x = y :> A) := ltac:(intros []; exact _).
 #[export] Instance quote_eq_refl_l {A} {qA : quotation_of A} {x y : A} {qx : quotation_of x} : ground_quotable (x = y :> A) := ltac:(intros []; exact _).
 #[export] Instance quote_eq_refl_r {A} {qA : quotation_of A} {x y : A} {qy : quotation_of y} : ground_quotable (x = y :> A) := ltac:(intro; subst; exact _).
 
@@ -144,6 +146,9 @@ Definition ground_quotable_of_dec {P} (H : {P} + {~P}) {qP : quotation_of P} {qH
   := ground_quotable_of_bp bp_of_dec pb_of_dec.
 Definition ground_quotable_neg_of_dec {P} (H : {P} + {~P}) {qP : quotation_of P} {qH : quotation_of H} : ground_quotable (~P)
   := ground_quotable_neg_of_bp neg_bp_of_dec neg_pb_of_dec.
+Definition ground_quotable_neq_of_EqDec {A x y} {qA : quotation_of A} {quoteA : ground_quotable A} {H : EqDec A} {qH : quotation_of H} : ground_quotable (x <> y :> A)
+  := ground_quotable_neg_of_dec (H x y).
+#[export] Hint Extern 1 (ground_quotable (?x <> ?y :> ?A)) => simple notypeclasses refine (@ground_quotable_neq_of_EqDec A x y _ _ _ _) : typeclass_instances.
 
 #[export] Instance quote_eq_true {b} : ground_quotable (eq_true b) := ltac:(destruct 1; exact _).
 #[export] Instance quote_BoolSpec {P Q : Prop} {b} {qP : quotation_of P} {qQ : quotation_of Q} {quoteP : ground_quotable P} {quoteQ : ground_quotable Q} : ground_quotable (BoolSpec P Q b).
@@ -151,10 +156,11 @@ Proof.
   destruct b; adjust_ground_quotable_by_econstructor_inversion ().
 Defined.
 #[export] Instance quote_nat : ground_quotable nat := ltac:(induction 1; exact _).
-#[export] Instance quote_option {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (option A) := (ltac:(induction 1; exact _)).
-#[export] Instance quote_sum {A B} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (sum A B) := (ltac:(induction 1; exact _)).
-#[export] Instance quote_prod {A B} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (prod A B) := (ltac:(induction 1; exact _)).
-#[export] Instance quote_list {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (list A) := (ltac:(induction 1; exact _)).
+#[export] Polymorphic Instance quote_option {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (option A) := (ltac:(induction 1; exact _)).
+#[export] Polymorphic Instance quote_sum {A B} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (sum A B) := (ltac:(induction 1; exact _)).
+#[export] Polymorphic Instance quote_prod {A B} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (prod A B) := (ltac:(induction 1; exact _)).
+#[export] Polymorphic Instance quote_list {A} {qA : quotation_of A} {quoteA : ground_quotable A} : ground_quotable (list A) := (ltac:(induction 1; exact _)).
+#[export] Polymorphic Instance quotation_of_list {A ls} {qA : quotation_of A} {qls : @All A quotation_of ls} : quotation_of ls := ltac:(induction qls; exact _).
 #[export] Instance quote_comparison : ground_quotable comparison := ltac:(destruct 1; exact _).
 #[export] Instance quote_CompareSpec {Peq Plt Pgt : Prop} {qPeq : quotation_of Peq} {qPlt : quotation_of Plt} {qPgt : quotation_of Pgt} {quote_Peq : ground_quotable Peq} {quote_Plt : ground_quotable Plt} {quote_Pgt : ground_quotable Pgt} {c} : ground_quotable (CompareSpec Peq Plt Pgt c).
 Proof.
@@ -180,10 +186,10 @@ End Number.
 
 #[export] Instance quote_le {n m} : ground_quotable (le n m) := ground_quotable_of_dec (Compare_dec.le_dec n m).
 
-#[export] Instance quote_sig {A} {P : A -> Prop} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} : ground_quotable (@sig A P) := (ltac:(induction 1; exact _)).
-#[export] Instance quote_sig2 {A} {P Q : A -> Prop} {qA : quotation_of A} {qP : quotation_of P} {qQ : quotation_of Q} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} {quoteQ : forall x, quotation_of x -> ground_quotable (Q x)} : ground_quotable (@sig2 A P Q) := (ltac:(induction 1; exact _)).
-#[export] Instance quote_sigT {A P} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} : ground_quotable (@sigT A P) := (ltac:(induction 1; exact _)).
-#[export] Instance quote_sigT2 {A} {P Q} {qA : quotation_of A} {qP : quotation_of P} {qQ : quotation_of Q} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} {quoteQ : forall x, quotation_of x -> ground_quotable (Q x)} : ground_quotable (@sigT2 A P Q) := (ltac:(induction 1; exact _)).
+#[export] Polymorphic Instance quote_sig {A} {P : A -> Prop} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} : ground_quotable (@sig A P) := (ltac:(induction 1; exact _)).
+#[export] Polymorphic Instance quote_sig2 {A} {P Q : A -> Prop} {qA : quotation_of A} {qP : quotation_of P} {qQ : quotation_of Q} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} {quoteQ : forall x, quotation_of x -> ground_quotable (Q x)} : ground_quotable (@sig2 A P Q) := (ltac:(induction 1; exact _)).
+#[export] Polymorphic Instance quote_sigT {A P} {qA : quotation_of A} {qP : quotation_of P} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} : ground_quotable (@sigT A P) := (ltac:(induction 1; exact _)).
+#[export] Polymorphic Instance quote_sigT2 {A} {P Q} {qA : quotation_of A} {qP : quotation_of P} {qQ : quotation_of Q} {quoteA : ground_quotable A} {quoteP : forall x, quotation_of x -> ground_quotable (P x)} {quoteQ : forall x, quotation_of x -> ground_quotable (Q x)} : ground_quotable (@sigT2 A P Q) := (ltac:(induction 1; exact _)).
 #[export] Instance quote_sumbool {A B : Prop} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (sumbool A B) := ltac:(destruct 1; exact _).
 #[export] Instance quote_sumor {A} {B : Prop} {qA : quotation_of A} {qB : quotation_of B} {quoteA : ground_quotable A} {quoteB : ground_quotable B} : ground_quotable (sumor A B) := ltac:(destruct 1; exact _).
 
@@ -251,5 +257,14 @@ Scheme Equality for comparison.
 #[export] Instance quote_neq_comparison {x y} : ground_quotable (x <> y :> comparison) := ground_quotable_neg_of_dec (@comparison_eq_dec x y).
 
 #[export] Instance quote_nle {n m} : ground_quotable (~le n m) := ground_quotable_neg_of_dec (Compare_dec.le_dec n m).
+
+Definition option_eq_None_dec_r {A} {l : option A} : {l = None} + {l <> None}.
+Proof. destruct l; [ right | left ]; try reflexivity; congruence. Defined.
+Definition option_eq_None_dec_l {A} {l : option A} : {None = l} + {None <> l}.
+Proof. destruct l; [ right | left ]; try reflexivity; congruence. Defined.
+#[export] Instance quote_option_neq_None_r {A} {qA : quotation_of A} (l : option A) {ql : quotation_of l} : ground_quotable (l <> None)
+  := ground_quotable_neg_of_dec option_eq_None_dec_r.
+#[export] Instance quote_option_neq_None_l {A} {qA : quotation_of A} (l : option A) {ql : quotation_of l} : ground_quotable (None <> l)
+  := ground_quotable_neg_of_dec option_eq_None_dec_l.
 *)
 *)
