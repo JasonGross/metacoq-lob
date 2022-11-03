@@ -87,16 +87,91 @@ Ltac make_ground_quotable_well_typed _ :=
   begin_ground_quotable_well_typed ();
   repeat repeat ground_quotable_well_typed_step ().
 
+From MetaCoq.SafeChecker Require Import SafeTemplateChecker.
+From MetaCoq.Template Require Import All utils.
+Import MCMonadNotation.
+#[local,program] Instance fake_abstract_guard_impl : PCUICWfEnvImpl.abstract_guard_impl :=
+  {
+    guard_impl := PCUICWfEnvImpl.fake_guard_impl
+  }.
+Next Obligation. todo "this axiom is inconsitent, onlu used to make infer compute". Qed.
+Definition default_normal : @PCUICSN.normalizing_flags config.default_checker_flags.
+now econstructor.
+Defined.
+
 #[export] Instance quote_True_well_typed : ground_quotable_well_typed_using [True] True := ltac:(make_ground_quotable_well_typed ()).
 #[export] Instance quote_False_well_typed : ground_quotable_well_typed_using [False] False := ltac:(make_ground_quotable_well_typed ()).
 #[export] Instance quote_byte_well_typed : ground_quotable_well_typed_using [Byte.byte] Byte.byte.
 pre_begin_ground_quotable_well_typed ().
+clear.
+intro t.
+replace cf with config.default_checker_flags.
+run_template_program (tmQuoteRec Byte.byte) (fun x => pose x as v).
+lazymatch goal with
+| [ |- @typing ?cf ?Σ ?Γ ?t ?T ]
+  => pose (@infer_template_program cf default_normal (* PCUICSN.default_normalizing*) _ (fst v, t) Monomorphic_ctx) as ch
+end.
+destruct t.
+clear -ch.
+replace Σ with (fst v, Monomorphic_ctx).
+let k := open_constr:([]) in
+replace Γ with k.
+pose (match ch with PCUICErrors.CorrectDecl d => Some d.π1 | _ => None end) as ch'.
+Time Timeout 30 vm_compute in ch'.
+Print EnvCheck_wf_env_ext.
+Print PCUICErrors.EnvCheck. EnvCheck
+Timeout 10 vm_compute in ch.
+cbv [program] in *.
+
 handle_env_constraints ().
+cbv [global_env_ext] in *.
+
+replace Σ with (fst v, Monomorphic_ctx).
+let k := open_constr:([]) in
+replace Γ with k.
+intro t; destruct t.
+(*
+Require Import MetaCoq.Template.Checker.
+Check infer.*)
+Check @infer_template_program.
+Search PCUICSN.normalizing_flags.
+lazymatch goal with
+| [ |- @typing ?cf ?Σ ?Γ ?t ?T ]
+  => epose (@infer_template_program cf 100 (fst Σ) init_graph Γ t)
+end.
+Print typing_result.
+Search infer.
+Timeout 10 vm_compute in t.
+Search universes_graph.
+
+Set Printing Implicit.
+Search ConstraintSet.t universes_decl.
+Print universes_decl.
+Print config.checker_flags.
 begin_ground_quotable_well_typed ().
 all: ground_quotable_well_typed_step ().
 all: try ground_quotable_well_typed_step ().
 all: try ground_quotable_well_typed_step ().
 Abort.
+*)
+#[export] Instance quote_Empty_set_well_typed : ground_quotable_well_typed_using [Empty_set] Empty_set := ltac:(make_ground_quotable_well_typed ()).
+#[export] Instance quote_unit_well_typed : ground_quotable_well_typed_using [unit] unit.
+  pre_begin_ground_quotable_well_typed ();
+  handle_env_constraints ();
+  begin_ground_quotable_well_typed ().
+  ground_quotable_well_typed_step ().
+  repeat repeat ground_quotable_well_typed_step ().
+  2: ground_quotable_well_typed_step ().
+  2: repeat repeat ground_quotable_well_typed_step ().
+  set (v := Ast.tSort _).
+  let v' := open_constr:(_) in replace v with v'.
+  all: subst v.
+  repeat repeat ground_quotable_well_typed_step ().
+  ground_quotable_well_typed_step ().
+  reflexivity.
+Defined.
+(*  := ltac:(make_ground_quotable_well_typed ()).*)
+#[export] Instance quote_bool_well_typed : ground_quotable_well_typed_using [bool] bool := ltac:(make_ground_quotable_well_typed ()).
 (*
 2: repeat repeat ground_quotable_well_typed_step ().
 3: repeat repeat ground_quotable_well_typed_step ().
@@ -112,9 +187,6 @@ introduce
 (*
 #[export] Instance quote_False : ground_quotable False := ltac:(destruct 1; exact _).
 #[export] Instance quote_byte : ground_quotable Byte.byte := ltac:(destruct 1; exact _).
-#[export] Instance quote_Empty_set : ground_quotable Empty_set := ltac:(destruct 1; exact _).
-#[export] Instance quote_unit : ground_quotable unit := ltac:(destruct 1; exact _).
-#[export] Instance quote_bool : ground_quotable bool := ltac:(destruct 1; exact _).
 
 #[export] Instance quote_eq {A} {qA : quotation_of A} {quoteA : ground_quotable A} {x y : A} : ground_quotable (x = y :> A) := ltac:(intros []; exact _).
 #[export] Instance quote_eq_refl_l {A} {qA : quotation_of A} {x y : A} {qx : quotation_of x} : ground_quotable (x = y :> A) := ltac:(intros []; exact _).

@@ -7,6 +7,7 @@ From MetaCoq.Lob.Util.Tactics Require Import
 
 Definition consistent_dec ctrs : {@consistent ctrs} + {~@consistent ctrs}.
 Proof.
+  pose proof (@uGraph.is_consistent_spec config.default_checker_flags).
   destruct (@uGraph.gc_consistent_iff config.default_checker_flags ctrs) as [f1 f2].
   cbv [MCOption.on_Some] in *; destruct @uGraph.gc_of_constraints as [t|];
     [ | solve [ auto ] ].
@@ -16,6 +17,9 @@ Defined.
 (* XXX FIXME *)
 Definition consistent_extension_on_dec cs cstr : {@consistent_extension_on cs cstr} + {~@consistent_extension_on cs cstr}.
 Proof.
+  (*
+  Search consistent_extension_on.
+  *)
 Admitted.
 
 Definition leq0_levelalg_n_dec n ϕ u u' : {@leq0_levelalg_n n ϕ u u'} + {~@leq0_levelalg_n n ϕ u u'}.
