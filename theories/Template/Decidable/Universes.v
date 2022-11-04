@@ -1,4 +1,4 @@
-From MetaCoq.Template Require Import Universes.
+From MetaCoq.Template Require Import Universes utils.MCList.
 From MetaCoq.Lob.Template.Decidable Require Import common.uGraph.
 From MetaCoq.Lob.Util.Tactics Require Import
      BreakMatch
@@ -17,9 +17,56 @@ Proof.
   destruct (gc_consistent_dec t); [ left | right ]; auto.
 Defined.
 
-Check @uGraph.consistent_ext_on_full_ext.
+Definition levels_of_cs0 (cstr : ConstraintSet.t) : LevelSet.t
+  := ConstraintSet.fold (fun '(l1, _, l2) acc => LevelSet.add l1 (LevelSet.add l2 acc)) cstr (LevelSet.singleton Level.lzero).
+Definition levels_of_cs (cs : ContextSet.t) (cstr : ConstraintSet.t) : LevelSet.t
+  := LevelSet.union (LevelSet.singleton Level.lzero) (LevelSet.union (ContextSet.levels cs) (LevelSet.union (levels_of_cs0 cstr) (levels_of_cs0 (ContextSet.constraints cs)))).
+Lemma levels_of_cs_spec cs cstr (lvls := levels_of_cs cs cstr)
+  : uGraph.global_uctx_invariants (lvls, ContextSet.constraints cs)
+    /\ uGraph.global_uctx_invariants (lvls, cstr).
+Proof.
+  subst lvls; cbv [levels_of_cs levels_of_cs0].
+  destruct cs as [lvls0 cs].
+  cbv [uGraph.global_uctx_invariants uGraph.uctx_invariants ConstraintSet.For_all declared_cstr_levels]; cbn [fst snd ContextSet.levels ContextSet.constraints].
+  repeat first [ apply conj
+               | progress intros
+               | progress break_innermost_match
+               | match goal with
+                 | [ |- ?x \/ ?y ]
+                   => first [ lazymatch x with context[LevelSet.In ?l (LevelSet.singleton ?l)] => idtac end;
+                              left
+                            | lazymatch y with context[LevelSet.In ?l (LevelSet.singleton ?l)] => idtac end;
+                              right ]
+                 | [ H : ConstraintSet.In ?l ?c |- ?x \/ ?y ]
+                   => first [ lazymatch x with context[LevelSet.In _ (ConstraintSet.fold _ c _)] => idtac end;
+                              left
+                            | lazymatch y with context[LevelSet.In _ (ConstraintSet.fold _ c _)] => idtac end;
+                              right ]
+                 end
+               | rewrite !LevelSet.union_spec
+               | progress rewrite <- ?ConstraintSet.elements_spec1, ?InA_In_eq in *
+               | rewrite ConstraintSetProp.fold_spec_right ].
+  all: lazymatch goal with
+       | [ |- LevelSet.In Level.lzero _ ] => LevelSetDecide.fsetdec
+       | [ H : List.In ?v ?ls |- LevelSet.In ?v' (List.fold_right ?f ?init (List.rev ?ls)) ]
+         => rewrite List.in_rev in H;
+            let ls' := fresh "ls" in
+            set (ls' := List.rev ls);
+            change (List.In v ls') in H;
+            change (LevelSet.In v' (List.fold_right f init ls'));
+            generalize init; induction ls'; cbn in *
+       end.
+  all: repeat first [ exfalso; assumption
+                    | progress destruct_head'_or
+                    | progress subst
+                    | progress intros
+                    | progress break_innermost_match
+                    | rewrite !LevelSetFact.add_iff
+                    | solve [ auto ] ].
+Qed.
+
 Lemma consistent_extension_on_iff cs cstr
-      (cf := config.default_checker_flags) (lvls := fst cs)
+      (cf := config.default_checker_flags) (lvls := levels_of_cs cs cstr)
   : @consistent_extension_on cs cstr
     <-> is_true
           match uGraph.is_consistent (lvls, ContextSet.constraints cs), uGraph.is_consistent (lvls, cstr),
@@ -32,10 +79,9 @@ Lemma consistent_extension_on_iff cs cstr
           | _, _, _, _ => false
           end.
 Proof.
-  subst lvls.
-  destruct cs as [lvls cs].
+  destruct (levels_of_cs_spec cs cstr).
   cbv zeta; break_innermost_match.
-  pose proof (fun uctx uctx' lvls G => @uGraph.consistent_ext_on_full_ext _ uctx G (lvls, uctx')) as H; cbn [fst snd] in H; erewrite H; clear H.
+  let H := fresh in pose proof (fun uctx uctx' G => @uGraph.consistent_ext_on_full_ext _ uctx G (lvls, uctx')) as H; cbn [fst snd] in H; erewrite H; clear H.
   1: reflexivity.
   all: cbn [fst snd ContextSet.constraints] in *.
   all: repeat
