@@ -150,10 +150,11 @@ Export QuoteUniverses2.Variance.Instances.
   := ground_quotable_of_dec (@consistent_dec ctrs).
 #[export] Instance quote_consistent_extension_on {cs cstr} : ground_quotable (@consistent_extension_on cs cstr)
   := ground_quotable_of_dec (@consistent_extension_on_dec cs cstr).
-#[export] Instance quote_leq_levelalg_n {cf n ϕ u u'} : ground_quotable (@leq_levelalg_n cf n ϕ u u')
-  := ground_quotable_of_dec (@leq_levelalg_n_dec cf n ϕ u u').
+#[export] Instance quote_leq_levelalg_n {cf n ϕ u u'} : ground_quotable (@leq_levelalg_n cf (uGraph.Z_of_bool n) ϕ u u')
+  := ground_quotable_of_dec (@leq_levelalg_n_dec cf _ ϕ u u').
 #[export] Instance quote_leq_universe_n_ {cf CS leq_levelalg_n n ϕ s s'} {quote_leq_levelalg_n : forall u u', ground_quotable (leq_levelalg_n n ϕ u u':Prop)} : ground_quotable (@leq_universe_n_ cf CS leq_levelalg_n n ϕ s s') := ltac:(cbv [leq_universe_n_]; exact _).
-#[export] Instance quote_leq_universe_n {cf n ϕ s s'} : ground_quotable (@leq_universe_n cf n ϕ s s') := _.
+#[export] Instance quote_leq_universe_n {cf n ϕ s s'} : ground_quotable (@leq_universe_n cf (uGraph.Z_of_bool n) ϕ s s') := _.
+#[export] Instance quote_leq_universe {cf ϕ s s'} : ground_quotable (@leq_universe cf ϕ s s') := @quote_leq_universe_n cf false ϕ s s'.
 #[export] Instance quote_eq_levelalg {cf ϕ u u'} : ground_quotable (@eq_levelalg cf ϕ u u')
   := ground_quotable_of_dec (@eq_levelalg_dec cf ϕ u u').
 #[export] Instance quote_eq_universe_ {CS eq_levelalg ϕ s s'} {quote_eq_levelalg : forall u u', ground_quotable (eq_levelalg ϕ u u':Prop)} : ground_quotable (@eq_universe_ CS eq_levelalg ϕ s s') := ltac:(cbv [eq_universe_]; exact _).

@@ -1,5 +1,4 @@
-From MetaCoq.Template Require Import Universes utils.MCList.
-From MetaCoq.Lob.Template.Decidable Require Import common.uGraph.
+From MetaCoq.Template Require Import Universes utils.MCList utils.MCOption common.uGraph.
 From MetaCoq.Lob.Util.Tactics Require Import
      BreakMatch
      SplitInContext
@@ -7,6 +6,7 @@ From MetaCoq.Lob.Util.Tactics Require Import
      SpecializeUnderBindersBy
      DestructHead
 .
+Import wGraph.
 
 Definition levels_of_cs (cstr : ConstraintSet.t) : LevelSet.t
   := ConstraintSet.fold (fun '(l1, _, l2) acc => LevelSet.add l1 (LevelSet.add l2 acc)) cstr (LevelSet.singleton Level.lzero).
@@ -99,6 +99,80 @@ Proof.
   split; apply global_uctx_invariants_union_or; constructor; apply levels_of_cs2_spec.
 Qed.
 
+(* TODO: MOVE ME *)
+Lemma global_gc_uctx_invariants_union_or lvls1 lvls2 cs
+  : global_gc_uctx_invariants (lvls1, cs) \/ global_gc_uctx_invariants (lvls2, cs)
+    -> global_gc_uctx_invariants (VSet.union lvls1 lvls2, cs).
+Proof.
+  cbv [global_gc_uctx_invariants uGraph.uctx_invariants GoodConstraintSet.For_all declared_cstr_levels]; cbn [fst snd ContextSet.levels ContextSet.constraints].
+  repeat first [ apply conj
+               | progress intros
+               | progress cbv beta iota in *
+               | progress break_innermost_match
+               | progress destruct_head'_and
+               | progress destruct_head'_or
+               | progress split_and
+               | rewrite !VSet.union_spec
+               | progress specialize_dep_under_binders_by eassumption
+               | solve [ eauto ] ].
+Qed.
+
+Definition levels_of_algexpr (u : LevelAlgExpr.t) : VSet.t
+  := LevelExprSet.fold
+       (fun gc acc => match LevelExpr.get_noprop gc with
+                      | Some l => VSet.add l acc
+                      | None => acc
+                      end)
+       u
+       VSet.empty.
+Lemma levels_of_algexpr_spec u cstr (lvls := levels_of_algexpr u)
+  : gc_levels_declared (lvls, cstr) u.
+Proof.
+  subst lvls; cbv [levels_of_algexpr gc_levels_declared gc_expr_declared on_Some_or_None LevelExpr.get_noprop]; cbn [fst snd].
+  cbv [LevelExprSet.For_all]; cbn [fst snd].
+  repeat first [ apply conj
+               | progress intros
+               | progress break_innermost_match
+               | exact I
+               | progress rewrite <- ?LevelExprSet.elements_spec1, ?InA_In_eq in *
+               | rewrite LevelExprSetProp.fold_spec_right ].
+  all: lazymatch goal with
+       | [ H : List.In ?v ?ls |- VSet.In ?v' (List.fold_right ?f ?init (List.rev ?ls)) ]
+         => rewrite List.in_rev in H;
+            let ls' := fresh "ls" in
+            set (ls' := List.rev ls);
+            change (List.In v ls') in H;
+            change (VSet.In v' (List.fold_right f init ls'));
+            generalize init; induction ls'; cbn in *
+       end.
+  all: repeat first [ exfalso; assumption
+                    | progress destruct_head'_or
+                    | progress subst
+                    | progress intros
+                    | progress break_innermost_match
+                    | rewrite !VSetFact.add_iff
+                    | solve [ auto ] ].
+Qed.
+
+(* TODO: MOVE ME *)
+Lemma gc_levels_declared_union_or lvls1 lvls2 cstr u
+  : gc_levels_declared (lvls1, cstr) u \/ gc_levels_declared (lvls2, cstr) u
+    -> gc_levels_declared (VSet.union lvls1 lvls2, cstr) u.
+Proof.
+  cbv [gc_levels_declared LevelExprSet.For_all gc_expr_declared on_Some_or_None LevelExpr.get_noprop]; cbn [fst].
+  repeat first [ apply conj
+               | progress intros
+               | progress cbv beta iota in *
+               | progress break_innermost_match
+               | progress break_innermost_match_hyps
+               | progress destruct_head'_and
+               | progress destruct_head'_or
+               | progress split_and
+               | rewrite !VSet.union_spec
+               | progress specialize_dep_under_binders_by eassumption
+               | solve [ eauto ] ].
+Qed.
+
 Lemma consistent_extension_on_iff cs cstr
       (cf := config.default_checker_flags) (lvls := levels_of_cscs cs cstr)
   : @consistent_extension_on cs cstr
@@ -178,15 +252,35 @@ Proof.
   destruct b; [ left; apply H; reflexivity | right; intro H'; apply H in H'; auto ].
 Defined.
 
-Definition leq0_levelalg_n_dec n ϕ u u' : {@leq0_levelalg_n n ϕ u u'} + {~@leq0_levelalg_n n ϕ u u'}.
+Definition leq0_levelalg_n_dec n ϕ u u' : {@leq0_levelalg_n (uGraph.Z_of_bool n) ϕ u u'} + {~@leq0_levelalg_n (uGraph.Z_of_bool n) ϕ u u'}.
 Proof.
-  pose proof (@uGraph.gc_leq0_levelalg_n_iff config.default_checker_flags n ϕ u u') as H.
-  cbv [MCOption.on_Some_or_None] in *; destruct @uGraph.gc_of_constraints as [t|];
-    [ | constructor; destruct H; solve [ auto ] ].
-  destruct (gc_leq0_levelalg_n_dec n t u u'); [ left | right ]; destruct H; auto.
+  pose proof (@uGraph.gc_leq0_levelalg_n_iff config.default_checker_flags (uGraph.Z_of_bool n) ϕ u u') as H.
+  pose proof (@uGraph.gc_consistent_iff config.default_checker_flags ϕ).
+  cbv [on_Some on_Some_or_None] in *.
+  break_innermost_match_hyps.
+  all: try solve [ left; cbv [consistent] in *; hnf; intros; exfalso; intuition eauto ].
+  pose proof (fun G cstr => @uGraph.leqb_levelalg_n_spec G (LevelSet.union (levels_of_cs ϕ) (LevelSet.union (levels_of_algexpr u) (levels_of_algexpr u')), cstr)).
+  pose proof (fun x y => @gc_of_constraints_of_uctx config.default_checker_flags (x, y)) as H'.
+  pose proof (@is_consistent_spec config.default_checker_flags (levels_of_cs ϕ, ϕ)).
+  specialize_under_binders_by eapply gc_levels_declared_union_or.
+  specialize_under_binders_by eapply global_gc_uctx_invariants_union_or.
+  specialize_under_binders_by (constructor; eapply gc_of_uctx_invariants).
+  cbn [fst snd] in *.
+  specialize_under_binders_by eapply H'.
+  specialize_under_binders_by eassumption.
+  specialize_under_binders_by eapply levels_of_cs_spec.
+  specialize_under_binders_by reflexivity.
+  destruct is_consistent;
+    [ | left; now cbv [leq0_levelalg_n consistent] in *; intros; exfalso; intuition eauto ].
+  specialize_by intuition eauto.
+  let H := match goal with H : forall (b : bool), _ |- _ => H end in
+  specialize (H n u u').
+  specialize_under_binders_by (constructor; eapply gc_levels_declared_union_or; constructor; eapply levels_of_algexpr_spec).
+  destruct leqb_levelalg_n; [ left | right ]; destruct_head' iff; specialize_by auto.
+  all: eauto.
 Defined.
 
-Definition leq_levelalg_n_dec cf n ϕ u u' : {@leq_levelalg_n cf n ϕ u u'} + {~@leq_levelalg_n cf n ϕ u u'}.
+Definition leq_levelalg_n_dec cf n ϕ u u' : {@leq_levelalg_n cf (uGraph.Z_of_bool n) ϕ u u'} + {~@leq_levelalg_n cf (uGraph.Z_of_bool n) ϕ u u'}.
 Proof.
   cbv [leq_levelalg_n]; destruct (@leq0_levelalg_n_dec n ϕ u u'); break_innermost_match; auto.
 Defined.
@@ -194,7 +288,7 @@ Defined.
 Definition eq0_levelalg_dec ϕ u u' : {@eq0_levelalg ϕ u u'} + {~@eq0_levelalg ϕ u u'}.
 Proof.
   pose proof (@eq0_leq0_levelalg ϕ u u') as H.
-  destruct (@leq0_levelalg_n_dec BinNums.Z0 ϕ u u'), (@leq0_levelalg_n_dec BinNums.Z0 ϕ u' u); constructor; destruct H; split_and; now auto.
+  destruct (@leq0_levelalg_n_dec false ϕ u u'), (@leq0_levelalg_n_dec false ϕ u' u); constructor; destruct H; split_and; now auto.
 Defined.
 
 Definition eq_levelalg_dec {cf ϕ} u u' : {@eq_levelalg cf ϕ u u'} + {~@eq_levelalg cf ϕ u u'}.
