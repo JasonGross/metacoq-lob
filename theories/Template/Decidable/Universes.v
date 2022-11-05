@@ -8,15 +8,6 @@ From MetaCoq.Lob.Util.Tactics Require Import
      DestructHead
 .
 
-Definition consistent_dec ctrs : {@consistent ctrs} + {~@consistent ctrs}.
-Proof.
-  pose proof (@uGraph.is_consistent_spec config.default_checker_flags).
-  destruct (@uGraph.gc_consistent_iff config.default_checker_flags ctrs) as [f1 f2].
-  cbv [MCOption.on_Some] in *; destruct @uGraph.gc_of_constraints as [t|];
-    [ | solve [ auto ] ].
-  destruct (gc_consistent_dec t); [ left | right ]; auto.
-Defined.
-
 Definition levels_of_cs (cstr : ConstraintSet.t) : LevelSet.t
   := ConstraintSet.fold (fun '(l1, _, l2) acc => LevelSet.add l1 (LevelSet.add l2 acc)) cstr (LevelSet.singleton Level.lzero).
 Lemma levels_of_cs_spec cstr (lvls := levels_of_cs cstr)
@@ -64,6 +55,12 @@ Proof.
                     | rewrite !LevelSetFact.add_iff
                     | solve [ auto ] ].
 Qed.
+
+Definition consistent_dec ctrs : {@consistent ctrs} + {~@consistent ctrs}.
+Proof.
+  pose proof (@uGraph.is_consistent_spec config.default_checker_flags (levels_of_cs ctrs, ctrs) (levels_of_cs_spec ctrs)) as H.
+  destruct uGraph.is_consistent; [ left; apply H | right; intro H'; apply H in H' ]; auto.
+Defined.
 
 (* MOVE ME *)
 Lemma global_uctx_invariants_union_or lvls1 lvls2 cs
@@ -176,17 +173,17 @@ Admitted.
 
 Definition consistent_extension_on_dec cs cstr : {@consistent_extension_on cs cstr} + {~@consistent_extension_on cs cstr}.
 Proof.
-  destruct (@consistent_extension_on_iff cs cstr) as [f1 f2].
-  let b := lazymatch type of f1 with _ -> is_true ?b => b end in
-  destruct b; [ left; apply f2; reflexivity | right; intro H; apply f1 in H; auto ].
+  pose proof (@consistent_extension_on_iff cs cstr) as H; cbv beta zeta in *.
+  let b := lazymatch type of H with context[is_true ?b] => b end in
+  destruct b; [ left; apply H; reflexivity | right; intro H'; apply H in H'; auto ].
 Defined.
 
 Definition leq0_levelalg_n_dec n ϕ u u' : {@leq0_levelalg_n n ϕ u u'} + {~@leq0_levelalg_n n ϕ u u'}.
 Proof.
-  destruct (@uGraph.gc_leq0_levelalg_n_iff config.default_checker_flags n ϕ u u') as [f1 f2].
+  pose proof (@uGraph.gc_leq0_levelalg_n_iff config.default_checker_flags n ϕ u u') as H.
   cbv [MCOption.on_Some_or_None] in *; destruct @uGraph.gc_of_constraints as [t|];
-    [ | solve [ auto ] ].
-  destruct (gc_leq0_levelalg_n_dec n t u u'); [ left | right ]; auto.
+    [ | constructor; destruct H; solve [ auto ] ].
+  destruct (gc_leq0_levelalg_n_dec n t u u'); [ left | right ]; destruct H; auto.
 Defined.
 
 Definition leq_levelalg_n_dec cf n ϕ u u' : {@leq_levelalg_n cf n ϕ u u'} + {~@leq_levelalg_n cf n ϕ u u'}.
@@ -196,8 +193,8 @@ Defined.
 
 Definition eq0_levelalg_dec ϕ u u' : {@eq0_levelalg ϕ u u'} + {~@eq0_levelalg ϕ u u'}.
 Proof.
-  destruct (@eq0_leq0_levelalg ϕ u u') as [f1 f2].
-  destruct (@leq0_levelalg_n_dec BinNums.Z0 ϕ u u'), (@leq0_levelalg_n_dec BinNums.Z0 ϕ u' u); split_and; auto.
+  pose proof (@eq0_leq0_levelalg ϕ u u') as H.
+  destruct (@leq0_levelalg_n_dec BinNums.Z0 ϕ u u'), (@leq0_levelalg_n_dec BinNums.Z0 ϕ u' u); constructor; destruct H; split_and; now auto.
 Defined.
 
 Definition eq_levelalg_dec {cf ϕ} u u' : {@eq_levelalg cf ϕ u u'} + {~@eq_levelalg cf ϕ u u'}.
