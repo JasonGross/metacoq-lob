@@ -1,0 +1,30 @@
+opam-version: "2.0"
+authors: [
+  "Jason Gross <jgross@mit.edu>"
+]
+maintainer: "Jason Gross <jgross@mit.edu>"
+homepage: "https://github.com/JasonGross/metacoq-lob"
+bug-reports: "https://github.com/JasonGross/metacoq-lob/issues"
+license: "MIT"
+build: [
+  [make "-j%{jobs}%"]
+]
+install: [make "install"]
+depends: [
+  "coq" {>= "8.16~"}
+  "coq-metacoq-template"
+  "coq-metacoq-pcuic"
+  "coq-metacoq-safechecker"
+]
+conflict-class: [
+  "coq-metacoq-lob"
+]
+dev-repo: "git+https://github.com/JasonGross/metacoq-lob.git"
+synopsis: "A WIP formalization of Löb's theorem based on MetaCoq"
+description: """
+A WIP formalization of Löb's theorem based on MetaCoq
+"""
+tags: ["logpath:MetaCoq/Lob"]
+url {
+  src: "git+https://github.com/JasonGross/metacoq-lob.git#main"
+}
