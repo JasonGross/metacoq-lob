@@ -119,7 +119,7 @@ replace Γ with k.
 pose (match ch with PCUICErrors.CorrectDecl d => Some d.π1 | _ => None end) as ch'.
 Time Timeout 30 vm_compute in ch'.
 Print EnvCheck_wf_env_ext.
-Print PCUICErrors.EnvCheck. EnvCheck
+(*Print PCUICErrors.EnvCheck. EnvCheck
 Timeout 10 vm_compute in ch.
 cbv [program] in *.
 
@@ -152,8 +152,8 @@ begin_ground_quotable_well_typed ().
 all: ground_quotable_well_typed_step ().
 all: try ground_quotable_well_typed_step ().
 all: try ground_quotable_well_typed_step ().
-Abort.
 *)
+Abort.
 #[export] Instance quote_Empty_set_well_typed : ground_quotable_well_typed_using [Empty_set] Empty_set := ltac:(make_ground_quotable_well_typed ()).
 #[export] Instance quote_unit_well_typed : ground_quotable_well_typed_using [unit] unit.
   pre_begin_ground_quotable_well_typed ();
@@ -171,7 +171,7 @@ Abort.
   reflexivity.
 Defined.
 (*  := ltac:(make_ground_quotable_well_typed ()).*)
-#[export] Instance quote_bool_well_typed : ground_quotable_well_typed_using [bool] bool := ltac:(make_ground_quotable_well_typed ()).
+(*#[export] Instance quote_bool_well_typed : ground_quotable_well_typed_using [bool] bool := ltac:(make_ground_quotable_well_typed ()).*)
 (*
 2: repeat repeat ground_quotable_well_typed_step ().
 3: repeat repeat ground_quotable_well_typed_step ().
