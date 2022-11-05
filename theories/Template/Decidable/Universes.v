@@ -17,16 +17,12 @@ Proof.
   destruct (gc_consistent_dec t); [ left | right ]; auto.
 Defined.
 
-Definition levels_of_cs0 (cstr : ConstraintSet.t) : LevelSet.t
+Definition levels_of_cs (cstr : ConstraintSet.t) : LevelSet.t
   := ConstraintSet.fold (fun '(l1, _, l2) acc => LevelSet.add l1 (LevelSet.add l2 acc)) cstr (LevelSet.singleton Level.lzero).
-Definition levels_of_cs (cs : ContextSet.t) (cstr : ConstraintSet.t) : LevelSet.t
-  := LevelSet.union (LevelSet.singleton Level.lzero) (LevelSet.union (ContextSet.levels cs) (LevelSet.union (levels_of_cs0 cstr) (levels_of_cs0 (ContextSet.constraints cs)))).
-Lemma levels_of_cs_spec cs cstr (lvls := levels_of_cs cs cstr)
-  : uGraph.global_uctx_invariants (lvls, ContextSet.constraints cs)
-    /\ uGraph.global_uctx_invariants (lvls, cstr).
+Lemma levels_of_cs_spec cstr (lvls := levels_of_cs cstr)
+  : uGraph.global_uctx_invariants (lvls, cstr).
 Proof.
-  subst lvls; cbv [levels_of_cs levels_of_cs0].
-  destruct cs as [lvls0 cs].
+  subst lvls; cbv [levels_of_cs].
   cbv [uGraph.global_uctx_invariants uGraph.uctx_invariants ConstraintSet.For_all declared_cstr_levels]; cbn [fst snd ContextSet.levels ContextSet.constraints].
   repeat first [ apply conj
                | progress intros
@@ -47,7 +43,11 @@ Proof.
                | progress rewrite <- ?ConstraintSet.elements_spec1, ?InA_In_eq in *
                | rewrite ConstraintSetProp.fold_spec_right ].
   all: lazymatch goal with
-       | [ |- LevelSet.In Level.lzero _ ] => LevelSetDecide.fsetdec
+       | [ |- LevelSet.In Level.lzero (List.fold_right ?f ?init ?ls) ]
+         => first [ LevelSetDecide.fsetdec
+                  | cut (LevelSet.In Level.lzero init);
+                    [ generalize init; induction ls; intros; cbn in *
+                    | LevelSetDecide.fsetdec ] ]
        | [ H : List.In ?v ?ls |- LevelSet.In ?v' (List.fold_right ?f ?init (List.rev ?ls)) ]
          => rewrite List.in_rev in H;
             let ls' := fresh "ls" in
@@ -65,8 +65,45 @@ Proof.
                     | solve [ auto ] ].
 Qed.
 
+(* MOVE ME *)
+Lemma global_uctx_invariants_union_or lvls1 lvls2 cs
+  : uGraph.global_uctx_invariants (lvls1, cs) \/ uGraph.global_uctx_invariants (lvls2, cs)
+    -> uGraph.global_uctx_invariants (LevelSet.union lvls1 lvls2, cs).
+Proof.
+  cbv [uGraph.global_uctx_invariants uGraph.uctx_invariants ConstraintSet.For_all declared_cstr_levels]; cbn [fst snd ContextSet.levels ContextSet.constraints].
+  repeat first [ apply conj
+               | progress intros
+               | progress cbv beta iota in *
+               | progress break_innermost_match
+               | progress destruct_head'_and
+               | progress destruct_head'_or
+               | progress split_and
+               | rewrite !LevelSet.union_spec
+               | progress specialize_dep_under_binders_by eapply pair
+               | solve [ eauto ] ].
+Qed.
+
+Definition levels_of_cs2 (cs1 cs2 : ConstraintSet.t) : LevelSet.t
+  := LevelSet.union (levels_of_cs cs1) (levels_of_cs cs2).
+Lemma levels_of_cs2_spec cs1 cs2 (lvls := levels_of_cs2 cs1 cs2)
+  : uGraph.global_uctx_invariants (lvls, cs1)
+    /\ uGraph.global_uctx_invariants (lvls, cs2).
+Proof.
+  split; apply global_uctx_invariants_union_or; constructor; apply levels_of_cs_spec.
+Qed.
+
+Definition levels_of_cscs (cs : ContextSet.t) (cstr : ConstraintSet.t) : LevelSet.t
+  := LevelSet.union (ContextSet.levels cs) (levels_of_cs2 cstr (ContextSet.constraints cs)).
+Lemma levels_of_cscs_spec cs cstr (lvls := levels_of_cscs cs cstr)
+  : uGraph.global_uctx_invariants (lvls, ContextSet.constraints cs)
+    /\ uGraph.global_uctx_invariants (lvls, cstr).
+Proof.
+  generalize (levels_of_cs2_spec cstr (ContextSet.constraints cs)).
+  split; apply global_uctx_invariants_union_or; constructor; apply levels_of_cs2_spec.
+Qed.
+
 Lemma consistent_extension_on_iff cs cstr
-      (cf := config.default_checker_flags) (lvls := levels_of_cs cs cstr)
+      (cf := config.default_checker_flags) (lvls := levels_of_cscs cs cstr)
   : @consistent_extension_on cs cstr
     <-> is_true
           match uGraph.is_consistent (lvls, ContextSet.constraints cs), uGraph.is_consistent (lvls, cstr),
@@ -79,7 +116,7 @@ Lemma consistent_extension_on_iff cs cstr
           | _, _, _, _ => false
           end.
 Proof.
-  destruct (levels_of_cs_spec cs cstr).
+  destruct (levels_of_cscs_spec cs cstr).
   cbv zeta; break_innermost_match.
   let H := fresh in pose proof (fun uctx uctx' G => @uGraph.consistent_ext_on_full_ext _ uctx G (lvls, uctx')) as H; cbn [fst snd] in H; erewrite H; clear H.
   1: reflexivity.
@@ -310,16 +347,26 @@ Defined.
 
 Definition eq_universe_dec {cf ϕ} s s' : {@eq_universe cf ϕ s s'} + {~@eq_universe cf ϕ s s'} := eq_universe__dec eq_levelalg_dec _ _.
 
-(* XXX FIXME *)
 Definition valid_constraints_dec cf ϕ cstrs : {@valid_constraints cf ϕ cstrs} + {~@valid_constraints cf ϕ cstrs}.
 Proof.
-  pose proof (fun G uctx a b c => uGraph.check_constraints_spec (uGraph.make_graph G) (uctx, ϕ) a b c cstrs) as H1.
-  pose proof (fun G uctx a b c => uGraph.check_constraints_complete (uGraph.make_graph G) (uctx, ϕ) a b c cstrs) as H2.
+  pose proof (fun G a b c => uGraph.check_constraints_spec (uGraph.make_graph G) (levels_of_cs2 ϕ cstrs, ϕ) a b c cstrs) as H1.
+  pose proof (fun G a b c => uGraph.check_constraints_complete (uGraph.make_graph G) (levels_of_cs2 ϕ cstrs, ϕ) a b c cstrs) as H2.
+  pose proof (levels_of_cs2_spec ϕ cstrs).
   cbn [fst snd] in *.
-  cbv [valid_constraints] in *; break_match; try solve [ left; exact I ].
-  specialize (fun G uctx a b c => H2 G uctx a b c eq_refl).
-  cbv [uGraph.is_graph_of_uctx MCOption.on_Some uGraph.global_uctx_invariants uGraph.uctx_invariants] in *; cbn [fst snd] in *.
-Admitted.
+  destruct (consistent_dec ϕ); [ | now left; cbv [valid_constraints valid_constraints0 consistent not] in *; break_innermost_match; intros; eauto; exfalso; eauto ].
+  destruct_head'_and.
+  specialize_under_binders_by assumption.
+  cbv [uGraph.is_graph_of_uctx MCOption.on_Some] in *.
+  cbv [valid_constraints] in *; break_innermost_match; auto.
+  break_innermost_match_hyps.
+  { specialize_under_binders_by reflexivity.
+    destruct uGraph.check_constraints; specialize_by reflexivity; auto. }
+  { rewrite uGraph.gc_consistent_iff in *.
+    cbv [uGraph.gc_of_uctx monad_utils.bind monad_utils.ret monad_utils.option_monad MCOption.on_Some] in *; cbn [fst snd] in *.
+    break_innermost_match_hyps.
+    all: try congruence.
+    all: exfalso; assumption. }
+Defined.
 
 Definition valid_constraints0_dec ϕ ctrs : {@valid_constraints0 ϕ ctrs} + {~@valid_constraints0 ϕ ctrs}
   := @valid_constraints_dec config.default_checker_flags ϕ ctrs.
