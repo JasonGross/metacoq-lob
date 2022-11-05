@@ -150,14 +150,12 @@ Export QuoteUniverses2.Variance.Instances.
   := ground_quotable_of_dec (@consistent_dec ctrs).
 #[export] Instance quote_consistent_extension_on {cs cstr} : ground_quotable (@consistent_extension_on cs cstr)
   := ground_quotable_of_dec (@consistent_extension_on_dec cs cstr).
-#[export] Instance quote_leq0_levelalg_n {n ϕ u u'} : ground_quotable (@leq0_levelalg_n n ϕ u u')
-  := ground_quotable_of_dec (@leq0_levelalg_n_dec n ϕ u u').
-#[export] Instance quote_leq_levelalg_n {cf n ϕ u u'} : ground_quotable (@leq_levelalg_n cf n ϕ u u') := ltac:(cbv [leq_levelalg_n]; exact _).
+#[export] Instance quote_leq_levelalg_n {cf n ϕ u u'} : ground_quotable (@leq_levelalg_n cf n ϕ u u')
+  := ground_quotable_of_dec (@leq_levelalg_n_dec cf n ϕ u u').
 #[export] Instance quote_leq_universe_n_ {cf CS leq_levelalg_n n ϕ s s'} {quote_leq_levelalg_n : forall u u', ground_quotable (leq_levelalg_n n ϕ u u':Prop)} : ground_quotable (@leq_universe_n_ cf CS leq_levelalg_n n ϕ s s') := ltac:(cbv [leq_universe_n_]; exact _).
 #[export] Instance quote_leq_universe_n {cf n ϕ s s'} : ground_quotable (@leq_universe_n cf n ϕ s s') := _.
-#[export] Instance quote_eq0_levelalg {ϕ u u'} : ground_quotable (@eq0_levelalg ϕ u u')
-  := ground_quotable_of_dec (@eq0_levelalg_dec ϕ u u').
-#[export] Instance quote_eq_levelalg {cf ϕ u u'} : ground_quotable (@eq_levelalg cf ϕ u u') := ltac:(cbv [eq_levelalg]; exact _).
+#[export] Instance quote_eq_levelalg {cf ϕ u u'} : ground_quotable (@eq_levelalg cf ϕ u u')
+  := ground_quotable_of_dec (@eq_levelalg_dec cf ϕ u u').
 #[export] Instance quote_eq_universe_ {CS eq_levelalg ϕ s s'} {quote_eq_levelalg : forall u u', ground_quotable (eq_levelalg ϕ u u':Prop)} : ground_quotable (@eq_universe_ CS eq_levelalg ϕ s s') := ltac:(cbv [eq_universe_]; exact _).
 #[export] Instance quote_eq_universe {cf ϕ s s'} : ground_quotable (@eq_universe cf ϕ s s') := _.
 #[export] Instance quote_compare_universe {cf pb ϕ u u'} : ground_quotable (@compare_universe cf pb ϕ u u') := ltac:(destruct pb; exact _).
