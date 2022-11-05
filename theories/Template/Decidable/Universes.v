@@ -106,8 +106,8 @@ Lemma consistent_extension_on_iff cs cstr
       (cf := config.default_checker_flags) (lvls := levels_of_cscs cs cstr)
   : @consistent_extension_on cs cstr
     <-> is_true
-          match uGraph.is_consistent (lvls, ContextSet.constraints cs), uGraph.is_consistent (lvls, cstr),
-            uGraph.gc_of_uctx (lvls, ContextSet.constraints cs), uGraph.gc_of_uctx (lvls, cstr) with
+          match uGraph.is_consistent cs, uGraph.is_consistent (lvls, cstr),
+            uGraph.gc_of_uctx cs, uGraph.gc_of_uctx (lvls, cstr) with
           | false, _, _, _
           | _, _, None, _
             => true
@@ -147,6 +147,8 @@ Proof.
                  | [ H : ?T <-> False |- _ ] => destruct H as [H _]; try change (~T) in H
                  | [ H : ~consistent ?cs |- consistent_extension_on (_, ?cs) _ ]
                    => intros ? ?; exfalso; apply H; eexists; eassumption
+                 | [ H : ~consistent (snd ?cs) |- consistent_extension_on ?cs _ ]
+                   => intros ? ?; exfalso; apply H; eexists; eassumption
                  | [ H : @uGraph.is_consistent ?cf ?uctx = false |- _ ]
                    => assert (~consistent (snd uctx));
                       [ rewrite <- (@uGraph.is_consistent_spec cf uctx), H; clear H; auto
@@ -170,10 +172,6 @@ Proof.
                                 | progress destruct_head'_and
                                 | progress specialize_under_binders_by eassumption
                                 | solve [ eauto ] ] ].
-  all: cbv [uGraph.global_uctx_invariants].
-  all: cbn [fst].
-  all: cbv [uGraph.uctx_invariants].
-  all: cbn [fst snd].
 (*
   all: try match goal with |- uGraph.global_uctx_invariants _ => shelve end.
 
