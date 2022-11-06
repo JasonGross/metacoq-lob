@@ -6,6 +6,7 @@ theories/QuoteGround.v
 theories/Template/Decidable/EnvironmentTyping.v
 theories/Template/Decidable/Universes.v
 theories/Template/QuoteGround/Ast.v
+theories/Template/QuoteGround/Ast/Typing.v
 theories/Template/QuoteGround/AstUtils.v
 theories/Template/QuoteGround/BasicAst.v
 theories/Template/QuoteGround/Coq/Bool.v
@@ -30,7 +31,9 @@ theories/Template/QuoteGround/Primitive.v
 theories/Template/QuoteGround/Reflect.v
 theories/Template/QuoteGround/ReflectAst.v
 theories/Template/QuoteGround/TermEquality.v
+theories/Template/QuoteGround/Typed.v
 theories/Template/QuoteGround/Typing.v
+theories/Template/QuoteGround/Typing/Typing.v
 theories/Template/QuoteGround/TypingWf.v
 theories/Template/QuoteGround/UnivSubst.v
 theories/Template/QuoteGround/Universes.v
@@ -63,6 +66,7 @@ theories/Template/QuoteGround/utils/canonicaltries/String2pos.v
 theories/Template/QuoteGround/utils/wGraph.v
 theories/Template/Reflect/Coq/Structures.v
 theories/Template/TermUtils.v
+theories/Template/Typed.v
 theories/Util/Lists/Definitions.v
 theories/Util/Notations.v
 theories/Util/Structures/Orders.v

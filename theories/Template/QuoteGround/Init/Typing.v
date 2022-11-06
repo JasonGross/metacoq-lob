@@ -15,8 +15,8 @@ Module config.
        ; global_env_ext_constraint : global_env_ext -> bool }.
 End config.
 
-Class quotation_of_well_typed {Pcf : config.typing_restriction} {T} (t : T) {qT : quotation_of T} {qt : quotation_of t} := typing_quoted_term_of : forall cf Σ Γ, config.checker_flags_constraint cf -> config.global_env_ext_constraint Σ -> wf_local Σ Γ -> Σ ;;; Γ |- qt : qT.
-Class ground_quotable_well_typed {Pcf : config.typing_restriction} T {qT : quotation_of T} {quoteT : ground_quotable T} := typing_quote_ground : forall t : T, quotation_of_well_typed t.
+Polymorphic Class quotation_of_well_typed {Pcf : config.typing_restriction} {T} (t : T) {qT : quotation_of T} {qt : quotation_of t} := typing_quoted_term_of : forall cf Σ Γ, config.checker_flags_constraint cf -> config.global_env_ext_constraint Σ -> wf_local Σ Γ -> Σ ;;; Γ |- qt : qT.
+Polymorphic Class ground_quotable_well_typed {Pcf : config.typing_restriction} T {qT : quotation_of T} {quoteT : ground_quotable T} := typing_quote_ground : forall t : T, quotation_of_well_typed t.
 
 Inductive dynlist := dnil | dcons {T} (t : T) (tl : dynlist).
 Declare Scope dynlist_scope.
